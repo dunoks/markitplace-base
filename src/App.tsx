@@ -1617,7 +1617,28 @@ const NFTPage = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [veoStatus, setVeoStatus] = useState<'idle' | 'key_required' | 'generating' | 'success' | 'error'>('idle');
   const [veoUrl, setVeoUrl] = useState<string | null>(null);
-  const [veoLabel, setVeoLabel] = useState('');
+  const [veoLabel, setVeoLabel] = useState('Initializing...');
+
+  useEffect(() => {
+    let interval: any;
+    const loadingMessages = [
+      'Generating...',
+      'Rendering...',
+      'Awaiting Finalization...',
+      'Synthesizing Cinematic Motion...',
+      'Stabilizing Video Modality...'
+    ];
+
+    if (veoStatus === 'generating') {
+      let i = 0;
+      setVeoLabel(loadingMessages[0]);
+      interval = setInterval(() => {
+        i++;
+        setVeoLabel(loadingMessages[i % loadingMessages.length]);
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [veoStatus]);
   
   const { toggleFavorite, isFavorite } = useFavorites();
   const liked = isFavorite(nft?.id || '');
@@ -1826,9 +1847,11 @@ const NFTPage = () => {
                     <div>
                       <h4 className="text-xl font-black text-white tracking-widest uppercase italic">Veo Synthesis Active</h4>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">{veoLabel}</span>
-                        <div className="w-1 h-1 rounded-full bg-gray-500" />
-                        <span className="text-[10px] font-black text-[#9d50bb] uppercase tracking-[0.3em] animate-pulse">Real-time Feed</span>
+                        <div className="px-3 py-1 bg-[#9d50bb]/20 border border-[#9d50bb]/30 rounded-lg">
+                          <span className="text-[10px] font-black text-[#9d50bb] uppercase tracking-[0.2em]">{veoLabel}</span>
+                        </div>
+                        <div className="w-1 h-1 rounded-full bg-gray-700" />
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] animate-pulse">Real-time Feed</span>
                       </div>
                     </div>
                   </div>

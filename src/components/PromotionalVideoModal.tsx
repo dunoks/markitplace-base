@@ -33,27 +33,6 @@ export const PromotionalVideoModal: React.FC<PromotionalVideoModalProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
 
-  const loadingMessages = [
-    'Generating...',
-    'Rendering...',
-    'Awaiting Finalization...',
-    'Synthesizing Cinematic Motion...',
-    'Stabilizing Video Modality...'
-  ];
-
-  useEffect(() => {
-    let interval: any;
-    if (status === 'generating') {
-      let i = 0;
-      setCurrentLabel(loadingMessages[0]);
-      interval = setInterval(() => {
-        i++;
-        setCurrentLabel(loadingMessages[i % loadingMessages.length]);
-      }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [status]);
-
   const startGeneration = async () => {
     const hasKey = await VeoService.hasKey();
     if (!hasKey) {
