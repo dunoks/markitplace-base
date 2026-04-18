@@ -48,12 +48,14 @@ import {
   Send,
   Link2,
   Share2,
-  Box
+  Box,
+  Video
 } from 'lucide-react';
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from './lib/utils';
 import { MOCK_NFTS, MOCK_COLLECTIONS, MOCK_ACTIVITY } from './lib/data';
+import { PromotionalVideoModal } from './components/PromotionalVideoModal';
 
 import { formatAddress } from './lib/utils';
 
@@ -821,6 +823,7 @@ const CreateNFT = () => {
     collection: 'Base Apes Club',
     rarity: 'Common',
     image: '',
+    documents: [] as string[],
     saleType: 'fixed' as 'fixed' | 'auction',
     isLazy: true
   });
@@ -1017,6 +1020,53 @@ const CreateNFT = () => {
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                     />
+                  </div>
+
+                  <div>
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Supporting Documents (Unlockable)</label>
+                     <div className="space-y-4">
+                       <div className="flex gap-4">
+                         <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center justify-center border-dashed group hover:border-[#00d2ff]/40 transition-all cursor-pointer relative overflow-hidden">
+                           <input 
+                            type="file" 
+                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setFormData(prev => ({...prev, documents: [...prev.documents, file.name]}));
+                              }
+                            }}
+                           />
+                           <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-[#00d2ff] transition-colors">
+                            <PlusSquare size={20} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Add Registry Document</span>
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <AnimatePresence>
+                        {formData.documents.map((doc, i) => (
+                          <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white/5 px-6 py-4 rounded-2xl border border-white/10 flex justify-between items-center group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Box size={16} className="text-[#00d2ff]" />
+                              <span className="text-xs text-white font-mono">{doc}</span>
+                            </div>
+                            <button 
+                              onClick={() => setFormData(prev => ({...prev, documents: prev.documents.filter((_, idx) => idx !== i)}))}
+                              className="text-gray-600 hover:text-red-500 transition-colors"
+                            >
+                              <Zap size={14} />
+                            </button>
+                          </motion.div>
+                        ))}
+                       </AnimatePresence>
+                     </div>
                   </div>
 
                   <button 
@@ -1564,6 +1614,10 @@ const NFTPage = () => {
   const nft = allNfts.find(n => n.id === id);
   const [isConfirming, setIsConfirming] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'pending' | 'success'>('idle');
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [veoStatus, setVeoStatus] = useState<'idle' | 'key_required' | 'generating' | 'success' | 'error'>('idle');
+  const [veoUrl, setVeoUrl] = useState<string | null>(null);
+  const [veoLabel, setVeoLabel] = useState('');
   
   const { toggleFavorite, isFavorite } = useFavorites();
   const liked = isFavorite(nft?.id || '');
@@ -1738,8 +1792,65 @@ const NFTPage = () => {
               >
                 <Send size={24} />
               </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setIsVideoModalOpen(true)}
+                  className={cn(
+                    "p-4 rounded-[28px] border transition-all duration-300 relative",
+                    veoStatus === 'generating' 
+                      ? "border-[#9d50bb] bg-[#9d50bb]/10 text-[#9d50bb]" 
+                      : "border-white/10 bg-white/5 text-gray-500 hover:text-[#9d50bb] hover:bg-[#9d50bb]/5 hover:border-[#9d50bb]/20"
+                  )}
+                  title="Create Promotional Video"
+                >
+                  <Video size={24} className={veoStatus === 'generating' ? "animate-pulse" : ""} />
+                </button>
+              </div>
             </div>
           </div>
+
+          <AnimatePresence>
+            {veoStatus === 'generating' && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="glass border border-[#9d50bb]/20 rounded-[32px] overflow-hidden"
+              >
+                <div className="p-8 flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-[#9d50bb]/10 flex items-center justify-center text-[#9d50bb] relative">
+                      <div className="absolute inset-0 bg-[#9d50bb]/20 rounded-2xl animate-ping" />
+                      <Video size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black text-white tracking-widest uppercase italic">Veo Synthesis Active</h4>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">{veoLabel}</span>
+                        <div className="w-1 h-1 rounded-full bg-gray-500" />
+                        <span className="text-[10px] font-black text-[#9d50bb] uppercase tracking-[0.3em] animate-pulse">Real-time Feed</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-48">
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                      <motion.div 
+                        className="h-full bg-[#9d50bb]"
+                        animate={{ 
+                          width: ["5%", "20%", "45%", "70%", "95%"],
+                          transition: { duration: 45, repeat: Infinity }
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[8px] font-black text-gray-700 uppercase tracking-widest">Protocol Signal</span>
+                      <span className="text-[8px] font-black text-gray-700 uppercase tracking-widest">Awaiting Artifact</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1783,14 +1894,26 @@ const NFTPage = () => {
                       </div>
                     </div>
                   )}
+                  {nft.isAuction && bidder && bidder !== 'None' && (
+                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                      <User size={12} className="text-gray-500" />
+                      <div className="text-[10px] font-black text-white flex items-center gap-1">
+                        <span className="text-gray-500 uppercase">Top Bidder:</span>
+                        <span className="font-mono">{formatAddress(bidder)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex justify-between items-start mb-4">
                 <div /> {/* Empty space where previous label was */}
                 {nft.isAuction && (
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
-                    {bidsCount} Protocol Bids
-                  </span>
+                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full">
+                    <Gavel size={12} className="text-[#9d50bb]" />
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      {bidsCount} Protocol Bids
+                    </span>
+                  </div>
                 )}
                 {!nft.isAuction && (
                   <AnimatePresence mode="wait">
@@ -1959,6 +2082,22 @@ const NFTPage = () => {
               )}
             </div>
           </div>
+
+          <PromotionalVideoModal 
+            isOpen={isVideoModalOpen}
+            onClose={() => setIsVideoModalOpen(false)}
+            status={veoStatus}
+            setStatus={setVeoStatus}
+            videoUrl={veoUrl}
+            setVideoUrl={setVeoUrl}
+            currentLabel={veoLabel}
+            setCurrentLabel={setVeoLabel}
+            nft={{
+              name: nft.name,
+              image: nft.image,
+              collection: nft.collection
+            }}
+          />
 
           {/* Purchase Confirmation Modal */}
           <Modal 
