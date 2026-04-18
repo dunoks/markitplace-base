@@ -16,10 +16,26 @@ import {
   http,
   useAccount,
   useConnect,
-  useDisconnect
+  useDisconnect,
+  useSwitchChain
 } from 'wagmi';
-import { injected } from 'wagmi/connectors';
-import { mainnet, base } from 'wagmi/chains';
+import { injected, coinbaseWallet } from 'wagmi/connectors';
+import { mainnet, base, baseSepolia } from 'wagmi/chains';
+import { OnchainKitProvider } from '@coinbase/onchainkit';
+import { 
+  ConnectWallet, 
+  Wallet as OnchainWallet, 
+  WalletDropdown, 
+  WalletDropdownLink, 
+  WalletDropdownDisconnect 
+} from '@coinbase/onchainkit/wallet';
+import {
+  Address,
+  Avatar,
+  Name,
+  Identity,
+} from '@coinbase/onchainkit/identity';
+import sdk from '@farcaster/frame-sdk';
 import { 
   Search, 
   ShoppingBag, 
@@ -27,7 +43,7 @@ import {
   Compass, 
   BarChart3, 
   PlusSquare,
-  Wallet,
+  Wallet as WalletIcon,
   Menu,
   X,
   ChevronRight,
@@ -46,7 +62,8 @@ import {
   Twitter,
   Send,
   Link2,
-  Share2
+  Share2,
+  Box
 } from 'lucide-react';
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -139,11 +156,16 @@ export const useMintedNFTs = () => useContext(MintedNFTsContext);
 
 // Wagmi Config
 const config = createConfig({
-  chains: [mainnet, base],
-  connectors: [injected()],
+  chains: [base, baseSepolia],
+  connectors: [
+    coinbaseWallet({
+      appName: 'Aether Registry',
+      preference: 'smartWalletOnly',
+    }),
+  ],
   transports: {
-    [mainnet.id]: http(),
     [base.id]: http(),
+    [baseSepolia.id]: http(),
   },
 });
 
@@ -217,8 +239,6 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -257,30 +277,29 @@ const Navbar = () => {
           <Link to="/create" className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Create</Link>
         </div>
 
-        {/* User Actions */}
+        {/* User Actions - OnchainKit Wallet */}
         <div className="flex items-center gap-3">
-          {isConnected ? (
-            <div className="flex items-center gap-3">
-              <Link to={`/profile/${address}`} className="hidden sm:flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white p-2.5 rounded-xl border border-white/10 transition-all">
-                <User size={18} />
-              </Link>
-              <button 
-                onClick={() => disconnect()}
-                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl font-bold border border-white/10 transition-all"
+          <OnchainWallet>
+            <ConnectWallet className="bg-[#00d2ff] hover:bg-[#00b0d6] text-black font-black py-2.5 rounded-xl border-none">
+              <Avatar className="h-6 w-6" />
+              <Name />
+            </ConnectWallet>
+            <WalletDropdown className="bg-[#14141e] border border-white/10 rounded-2xl p-4 shadow-2xl">
+              <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                <Avatar />
+                <Name />
+                <Address className="text-gray-400" />
+              </Identity>
+              <WalletDropdownLink
+                icon="wallet"
+                href={`/profile/${address}`}
+                className="hover:bg-white/5 rounded-xl"
               >
-                <div className="w-2 h-2 bg-[#00d2ff] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,210,255,1)]" />
-                <span className="font-mono text-sm">{formatAddress(address!)}</span>
-              </button>
-            </div>
-          ) : (
-            <button 
-              onClick={() => connect({ connector: connectors[0] })}
-              className="flex items-center gap-2 bg-[#00d2ff] hover:bg-[#00b0d6] text-black px-6 py-2.5 rounded-xl font-black tracking-tight shadow-lg shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap"
-            >
-              <Wallet size={18} />
-              <span className="hidden sm:inline">Connect</span>
-            </button>
-          )}
+                Go to Nexus
+              </WalletDropdownLink>
+              <WalletDropdownDisconnect className="hover:bg-red-500/10 text-red-400 rounded-xl" />
+            </WalletDropdown>
+          </OnchainWallet>
 
           <button 
             className="lg:hidden p-2.5 text-gray-400"
@@ -1724,17 +1743,24 @@ const Profile = () => {
       <div className="flex flex-col md:flex-row items-center md:items-end gap-10 mb-20">
         <div className="w-40 h-40 rounded-[48px] bg-gradient-to-br from-[#00d2ff] to-[#9d50bb] p-1 shadow-2xl">
           <div className="w-full h-full rounded-[44px] bg-[#050508] flex items-center justify-center overflow-hidden">
-            <User size={80} className="text-white/20" />
+            <Identity 
+              address={profileAddress as `0x${string}`} 
+              className="w-full h-full"
+            >
+              <Avatar className="w-full h-full border-none" />
+            </Identity>
           </div>
         </div>
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-5xl font-black text-white tracking-tighter mb-4">
-            {profileAddress === currentAddress ? 'Your Nexus Profile' : 'Operator Archive'}
+            <Identity address={profileAddress as `0x${string}`} className="text-white">
+              <Name />
+            </Identity>
           </h1>
           <div className="flex items-center justify-center md:justify-start gap-4 mb-8">
-            <span className="font-mono text-gray-500 bg-white/5 px-4 py-1.5 rounded-full border border-white/5 text-sm">
-              {profileAddress}
-            </span>
+            <Identity address={profileAddress as `0x${string}`}>
+              <Address className="text-gray-500 font-mono bg-white/5 px-4 py-1.5 rounded-full border border-white/5 text-sm" />
+            </Identity>
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
           </div>
 
@@ -1939,27 +1965,61 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default function App() {
+  const [isSdkReady, setIsSdkReady] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await sdk.actions.ready();
+        setIsSdkReady(true);
+      } catch (e) {
+        console.error('Frame SDK init failed', e);
+        setIsSdkReady(true);
+      }
+    };
+    if (sdk) {
+      init();
+    }
+  }, []);
+
+  if (!isSdkReady) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#050508] text-[#00d2ff]">
+        <div className="flex flex-col items-center gap-4">
+          <Zap size={48} className="animate-pulse" />
+          <span className="font-black uppercase tracking-[0.3em] text-xs">Aether Registry Initializing...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <MintedNFTsProvider>
-          <FavoritesProvider>
-            <Router>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/explore" element={<Explore />} />
-                  <Route path="/collection/:id" element={<CollectionPage />} />
-                  <Route path="/nft/:id" element={<NFTPage />} />
-                  <Route path="/profile/:address" element={<Profile />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
-                  <Route path="/create" element={<CreateNFT />} />
-                </Routes>
-              </Layout>
-            </Router>
-          </FavoritesProvider>
-        </MintedNFTsProvider>
+        <OnchainKitProvider
+          apiKey={(import.meta as any).env.VITE_ONCHAINKIT_API_KEY || ''}
+          chain={base}
+          config={{ appearance: { mode: 'dark' } }}
+        >
+          <MintedNFTsProvider>
+            <FavoritesProvider>
+              <Router>
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/explore" element={<Explore />} />
+                    <Route path="/collection/:id" element={<CollectionPage />} />
+                    <Route path="/nft/:id" element={<NFTPage />} />
+                    <Route path="/profile/:address" element={<Profile />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
+                    <Route path="/create" element={<CreateNFT />} />
+                  </Routes>
+                </Layout>
+              </Router>
+            </FavoritesProvider>
+          </MintedNFTsProvider>
+        </OnchainKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
