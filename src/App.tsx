@@ -1867,24 +1867,38 @@ const NFTPage = () => {
                             }
                           }}
                           onChange={(e) => {
-                            setBidAmount(e.target.value);
-                            setBidError('');
+                            const val = e.target.value;
+                            setBidAmount(val);
+                            
+                            // Real-time validation hint
+                            const numericVal = parseFloat(val);
+                            if (val && numericVal <= currentHighestBid) {
+                              setBidError(`Bid must exceed floor: ${(currentHighestBid + 0.01).toFixed(2)} ETH`);
+                            } else if (val && numericVal <= 0) {
+                              setBidError('Value must be a positive number');
+                            } else {
+                              setBidError('');
+                            }
                           }}
                           className={cn(
                             "w-full bg-black/40 border rounded-2xl py-6 px-6 text-xl text-white font-black outline-none transition-all placeholder:text-gray-700",
-                            bidError ? "border-red-500/50" : "border-white/10 group-focus-within:border-[#00d2ff]/50"
+                            bidError ? "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]" : "border-white/10 focus:border-[#00d2ff]/50 focus:shadow-[0_0_15px_rgba(0,210,255,0.1)]"
                           )}
                         />
-                        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00d2ff] font-black">ETH</div>
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00d2ff] font-black pointer-events-none">ETH</div>
                       </div>
-                      {bidError && (
+                      {bidError ? (
                         <motion.p 
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="text-red-500 text-xs font-bold pl-2"
+                          initial={{ opacity: 0, x: -5 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="text-red-500 text-[10px] font-black uppercase tracking-widest pl-2"
                         >
                           {bidError}
                         </motion.p>
+                      ) : (
+                        <p className="text-gray-600 text-[10px] font-black uppercase tracking-widest pl-2 opacity-60">
+                          Next Valid Protocol Bid: {(currentHighestBid + 0.01).toFixed(2)} ETH
+                        </p>
                       )}
                       <div className="flex flex-col gap-3">
                         <button 
