@@ -8,6 +8,12 @@ export interface NFT {
   lastSale?: number;
   owner: string;
   rarity?: string;
+  isAuction?: boolean;
+  auctionEnd?: string; // ISO string
+  minBid?: number;
+  currentBid?: number;
+  highestBidder?: string;
+  bidsCount?: number;
 }
 
 export interface Collection {
@@ -68,7 +74,13 @@ export const MOCK_NFTS: NFT[] = [
     price: 0.28,
     lastSale: 0.22,
     owner: '0x123...456',
-    rarity: 'Rare'
+    rarity: 'Rare',
+    isAuction: true,
+    auctionEnd: new Date(Date.now() + 1000 * 60 * 60 * 4).toISOString(), // 4h from now
+    currentBid: 0.25,
+    minBid: 0.2,
+    bidsCount: 12,
+    highestBidder: '0x789...abc'
   },
   {
     id: '2',
@@ -79,7 +91,13 @@ export const MOCK_NFTS: NFT[] = [
     price: 1.75,
     lastSale: 1.5,
     owner: '0xABC...DEF',
-    rarity: 'Epic'
+    rarity: 'Epic',
+    isAuction: true,
+    auctionEnd: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // 24h from now
+    currentBid: 1.62,
+    minBid: 1.1,
+    bidsCount: 5,
+    highestBidder: '0xdef...ghi'
   },
   {
     id: '3',
@@ -99,7 +117,13 @@ export const MOCK_NFTS: NFT[] = [
     price: 0.85,
     lastSale: 0.5,
     owner: '0x456...789',
-    rarity: 'Legendary'
+    rarity: 'Legendary',
+    isAuction: true,
+    auctionEnd: new Date(Date.now() + 1000 * 60 * 30).toISOString(), // 30m from now
+    currentBid: 0.82,
+    minBid: 0.5,
+    bidsCount: 28,
+    highestBidder: '0x123...999'
   },
   {
     id: '5',
