@@ -49,7 +49,9 @@ import {
   Link2,
   Share2,
   Box,
-  Video
+  Video,
+  Play,
+  Download
 } from 'lucide-react';
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1820,17 +1822,58 @@ const NFTPage = () => {
                     "p-4 rounded-[28px] border transition-all duration-300 relative",
                     veoStatus === 'generating' 
                       ? "border-[#9d50bb] bg-[#9d50bb]/10 text-[#9d50bb]" 
-                      : "border-white/10 bg-white/5 text-gray-500 hover:text-[#9d50bb] hover:bg-[#9d50bb]/5 hover:border-[#9d50bb]/20"
+                      : veoStatus === 'success'
+                        ? "border-[#00d2ff] bg-[#00d2ff]/10 text-[#00d2ff] shadow-[0_0_15px_rgba(0,210,255,0.2)]"
+                        : "border-white/10 bg-white/5 text-gray-500 hover:text-[#9d50bb] hover:bg-[#9d50bb]/5 hover:border-[#9d50bb]/20"
                   )}
-                  title="Create Promotional Video"
+                  title={veoStatus === 'success' ? "View Video Relic" : "Create Promotional Video"}
                 >
                   <Video size={24} className={veoStatus === 'generating' ? "animate-pulse" : ""} />
+                  {veoStatus === 'success' && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#00d2ff] rounded-full border-2 border-black animate-pulse" />
+                  )}
                 </button>
               </div>
             </div>
           </div>
 
           <AnimatePresence>
+            {veoStatus === 'success' && veoUrl && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="glass border border-[#00d2ff]/20 rounded-[32px] overflow-hidden"
+              >
+                <div className="p-8 flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-[#00d2ff]/10 flex items-center justify-center text-[#00d2ff]">
+                      <Play size={24} fill="currentColor" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black text-white tracking-widest uppercase italic">Promotional Relic Ready</h4>
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Cinematic Artifact Successfully Synthesized</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setIsVideoModalOpen(true)}
+                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest border border-white/10 transition-all"
+                    >
+                      Preview
+                    </button>
+                    <a 
+                      href={veoUrl} 
+                      download={`${nft.name}-promo.mp4`}
+                      className="px-8 py-4 bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
+                    >
+                      <Download size={14} /> Download Video
+                    </a>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {veoStatus === 'generating' && (
               <motion.div 
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
