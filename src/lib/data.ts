@@ -15,6 +15,13 @@ export interface NFT {
   highestBidder?: string;
   bidsCount?: number;
   isVerified?: boolean;
+  isLazy?: boolean;
+  mintVoucher?: {
+    signature: string;
+    creator: string;
+    price: string; // in wei or ETH string
+    nonce: string;
+  };
 }
 
 export interface Collection {

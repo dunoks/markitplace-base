@@ -17,25 +17,10 @@ import {
   useAccount,
   useConnect,
   useDisconnect,
-  useSwitchChain
+  useSignTypedData
 } from 'wagmi';
-import { injected, coinbaseWallet } from 'wagmi/connectors';
-import { mainnet, base, baseSepolia } from 'wagmi/chains';
-import { OnchainKitProvider } from '@coinbase/onchainkit';
-import { 
-  ConnectWallet, 
-  Wallet as OnchainWallet, 
-  WalletDropdown, 
-  WalletDropdownLink, 
-  WalletDropdownDisconnect 
-} from '@coinbase/onchainkit/wallet';
-import {
-  Address,
-  Avatar,
-  Name,
-  Identity,
-} from '@coinbase/onchainkit/identity';
-import sdk from '@farcaster/frame-sdk';
+import { injected } from 'wagmi/connectors';
+import { mainnet, base } from 'wagmi/chains';
 import { 
   Search, 
   ShoppingBag, 
@@ -43,7 +28,7 @@ import {
   Compass, 
   BarChart3, 
   PlusSquare,
-  Wallet as WalletIcon,
+  Wallet,
   Menu,
   X,
   ChevronRight,
@@ -62,8 +47,7 @@ import {
   Twitter,
   Send,
   Link2,
-  Share2,
-  Box
+  Share2
 } from 'lucide-react';
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -156,16 +140,11 @@ export const useMintedNFTs = () => useContext(MintedNFTsContext);
 
 // Wagmi Config
 const config = createConfig({
-  chains: [base, baseSepolia],
-  connectors: [
-    coinbaseWallet({
-      appName: 'Aether Registry',
-      preference: 'smartWalletOnly',
-    }),
-  ],
+  chains: [mainnet, base],
+  connectors: [injected()],
   transports: {
+    [mainnet.id]: http(),
     [base.id]: http(),
-    [baseSepolia.id]: http(),
   },
 });
 
@@ -239,6 +218,8 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -277,29 +258,30 @@ const Navbar = () => {
           <Link to="/create" className="text-sm font-bold uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Create</Link>
         </div>
 
-        {/* User Actions - OnchainKit Wallet */}
+        {/* User Actions */}
         <div className="flex items-center gap-3">
-          <OnchainWallet>
-            <ConnectWallet className="bg-[#00d2ff] hover:bg-[#00b0d6] text-black font-black py-2.5 rounded-xl border-none">
-              <Avatar className="h-6 w-6" />
-              <Name />
-            </ConnectWallet>
-            <WalletDropdown className="bg-[#14141e] border border-white/10 rounded-2xl p-4 shadow-2xl">
-              <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-                <Avatar />
-                <Name />
-                <Address className="text-gray-400" />
-              </Identity>
-              <WalletDropdownLink
-                icon="wallet"
-                href={`/profile/${address}`}
-                className="hover:bg-white/5 rounded-xl"
+          {isConnected ? (
+            <div className="flex items-center gap-3">
+              <Link to={`/profile/${address}`} className="hidden sm:flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white p-2.5 rounded-xl border border-white/10 transition-all">
+                <User size={18} />
+              </Link>
+              <button 
+                onClick={() => disconnect()}
+                className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl font-bold border border-white/10 transition-all"
               >
-                Go to Nexus
-              </WalletDropdownLink>
-              <WalletDropdownDisconnect className="hover:bg-red-500/10 text-red-400 rounded-xl" />
-            </WalletDropdown>
-          </OnchainWallet>
+                <div className="w-2 h-2 bg-[#00d2ff] rounded-full animate-pulse shadow-[0_0_8px_rgba(0,210,255,1)]" />
+                <span className="font-mono text-sm">{formatAddress(address!)}</span>
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => connect({ connector: connectors[0] })}
+              className="flex items-center gap-2 bg-[#00d2ff] hover:bg-[#00b0d6] text-black px-6 py-2.5 rounded-xl font-black tracking-tight shadow-lg shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap"
+            >
+              <Wallet size={18} />
+              <span className="hidden sm:inline">Connect</span>
+            </button>
+          )}
 
           <button 
             className="lg:hidden p-2.5 text-gray-400"
@@ -374,13 +356,20 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
               className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-1000"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute top-4 left-4 bg-[#9d50bb]/80 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-2">
-              {nft.isAuction ? (
-                <>
-                  <Gavel size={12} /> Auction
-                </>
-              ) : (
-                'Listed'
+            <div className="absolute top-4 left-4 flex flex-col gap-2">
+              <div className="bg-[#9d50bb]/80 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-2">
+                {nft.isAuction ? (
+                  <>
+                    <Gavel size={12} /> Auction
+                  </>
+                ) : (
+                  'Listed'
+                )}
+              </div>
+              {nft.isLazy && (
+                <div className="bg-[#00d2ff]/80 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-black border border-white/10 flex items-center gap-2">
+                  <Sparkles size={12} /> Lazy Mint
+                </div>
               )}
             </div>
             {/* Overlay Rarity */}
@@ -775,6 +764,8 @@ const Explore = () => {
 const CreateNFT = () => {
   const navigate = useNavigate();
   const { addMintedNft } = useMintedNFTs();
+  const { address } = useAccount();
+  const { signTypedDataAsync } = useSignTypedData();
   const [step, setStep] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
   const [formData, setFormData] = useState({
@@ -784,30 +775,92 @@ const CreateNFT = () => {
     collection: 'Base Apes Club',
     rarity: 'Common',
     image: '',
-    saleType: 'fixed' as 'fixed' | 'auction'
+    saleType: 'fixed' as 'fixed' | 'auction',
+    isLazy: true
   });
 
-  const handleMint = () => {
+  const handleMint = async () => {
     setIsMinting(true);
-    // Simulate transaction delay
-    setTimeout(() => {
-      const newNft = {
-        id: `minted-${Date.now()}`,
-        name: formData.name || 'Untitled Discovery',
-        collection: formData.collection,
-        collectionId: formData.collection.toLowerCase().replace(/ /g, '-'),
-        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/800`,
-        price: parseFloat(formData.price) || 0.1,
-        owner: '0xYou (Operator)',
-        rarity: formData.rarity,
-        isAuction: formData.saleType === 'auction',
-        bidsCount: 0,
-        isVerified: false
-      };
-      addMintedNft(newNft);
-      setIsMinting(false);
+    try {
+      if (formData.isLazy) {
+        // Lazy Minting signing process
+        const domain = {
+          name: 'Aether-Lazy-Mint',
+          version: '1',
+          chainId: 8453, // Base
+          verifyingContract: '0x0000000000000000000000000000000000000000' as const,
+        };
+
+        const types = {
+          NFTVoucher: [
+            { name: 'creator', type: 'address' },
+            { name: 'price', type: 'uint256' },
+            { name: 'nonce', type: 'uint256' },
+            { name: 'name', type: 'string' },
+          ],
+        } as const;
+
+        const priceInWei = BigInt(Math.floor(parseFloat(formData.price) * 1e18));
+        const nonce = BigInt(Math.floor(Date.now() / 1000));
+
+        const signature = await signTypedDataAsync({
+          domain,
+          types,
+          primaryType: 'NFTVoucher',
+          message: {
+            creator: address as `0x${string}`,
+            price: priceInWei,
+            nonce: nonce,
+            name: formData.name,
+          },
+          account: address,
+        });
+
+        const newNft = {
+          id: `lazy-${Date.now()}`,
+          name: formData.name || 'Untitled Discovery',
+          collection: formData.collection,
+          collectionId: formData.collection.toLowerCase().replace(/ /g, '-'),
+          image: formData.image || `https://picsum.photos/seed/${formData.name}/800/800`,
+          price: parseFloat(formData.price) || 0.1,
+          owner: address || '0xYou (Operator)',
+          rarity: formData.rarity,
+          isAuction: formData.saleType === 'auction',
+          bidsCount: 0,
+          isVerified: false,
+          isLazy: true,
+          mintVoucher: {
+            signature,
+            creator: address!,
+            price: priceInWei.toString(),
+            nonce: nonce.toString()
+          }
+        };
+        addMintedNft(newNft);
+      } else {
+        // Standard Minting (Simulated)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const newNft = {
+          id: `minted-${Date.now()}`,
+          name: formData.name || 'Untitled Discovery',
+          collection: formData.collection,
+          collectionId: formData.collection.toLowerCase().replace(/ /g, '-'),
+          image: formData.image || `https://picsum.photos/seed/${formData.name}/800/800`,
+          price: parseFloat(formData.price) || 0.1,
+          owner: address || '0xYou (Operator)',
+          rarity: formData.rarity,
+          isAuction: formData.saleType === 'auction',
+          bidsCount: 0,
+          isVerified: false
+        };
+        addMintedNft(newNft);
+      }
       setStep(3); // Show success step
-    }, 3000);
+    } catch (e) {
+      console.error('Minting failed:', e);
+    } finally {
+      setIsMinting(false);
+    }
   };
 
   return (
@@ -926,6 +979,32 @@ const CreateNFT = () => {
 
                 <div className="space-y-10">
                   <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-4">Deployment Method</label>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                       <button 
+                        onClick={() => setFormData({...formData, isLazy: true})}
+                        className={cn(
+                          "p-6 rounded-3xl border transition-all text-left group",
+                          formData.isLazy ? "bg-[#00d2ff]/10 border-[#00d2ff] text-white" : "bg-white/5 border-white/5 text-gray-500 hover:border-white/10"
+                        )}
+                      >
+                        <Sparkles size={24} className={formData.isLazy ? "text-[#00d2ff] mb-4" : "mb-4"} />
+                        <span className="block font-black uppercase tracking-widest text-[10px]">Lazy Mint</span>
+                        <span className="text-[10px] opacity-60">No Upfront Gas Fees</span>
+                      </button>
+                      <button 
+                        onClick={() => setFormData({...formData, isLazy: false})}
+                        className={cn(
+                          "p-6 rounded-3xl border transition-all text-left group",
+                          !formData.isLazy ? "bg-white/10 border-white text-white" : "bg-white/5 border-white/5 text-gray-500 hover:border-white/10"
+                        )}
+                      >
+                        <Zap size={24} className={!formData.isLazy ? "text-white mb-4" : "mb-4"} />
+                        <span className="block font-black uppercase tracking-widest text-[10px]">Instant Mint</span>
+                        <span className="text-[10px] opacity-60">Requires Gas Now</span>
+                      </button>
+                    </div>
+
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-4">Market Execution</label>
                     <div className="grid grid-cols-2 gap-4">
                       <button 
@@ -1018,8 +1097,15 @@ const CreateNFT = () => {
                 <div className="w-24 h-24 bg-green-500/20 rounded-[32px] flex items-center justify-center text-green-400 mb-8 shadow-[0_0_40px_rgba(34,197,94,0.3)] border border-green-500/30">
                   <BadgeCheck size={48} />
                 </div>
-                <h2 className="text-4xl font-black text-white mb-4 tracking-tighter">Protocol Deployment Successful</h2>
-                <p className="text-gray-500 mb-12 max-w-sm">Asset <b>{formData.name}</b> has been registered in the Aether Registry and is now visible on the Base network.</p>
+                <h2 className="text-4xl font-black text-white mb-4 tracking-tighter">
+                  {formData.isLazy ? 'Relic Signed & Registered' : 'Protocol Deployment Successful'}
+                </h2>
+                <p className="text-gray-500 mb-12 max-w-sm">
+                  {formData.isLazy 
+                    ? `Asset ${formData.name} is now listed via Lazy Minting. Gas will be paid by the collector upon acquisition.`
+                    : `Asset ${formData.name} has been registered in the Aether Registry and is now visible on the Base network.`
+                  }
+                </p>
                 <div className="flex gap-4 w-full">
                   <button 
                     onClick={() => navigate('/explore')}
@@ -1117,7 +1203,8 @@ const CollectionPage = () => {
 
 const NFTPage = () => {
   const { id } = useParams();
-  const nft = MOCK_NFTS.find(n => n.id === id);
+  const { allNfts } = useMintedNFTs();
+  const nft = allNfts.find(n => n.id === id);
   const [isConfirming, setIsConfirming] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'pending' | 'success'>('idle');
   
@@ -1300,11 +1387,20 @@ const NFTPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Registry Holder</span>
-              <span className="text-[#9d50bb] font-black font-mono text-sm">{nft.owner}</span>
+              <span className="text-[#9d50bb] font-black font-mono text-sm">{formatAddress(nft.owner)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
-              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Protocol Synchronized</span>
+              {nft.isLazy ? (
+                <>
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(234,179,8,1)]" />
+                  <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Awaiting First Mint</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
+                  <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Protocol Synchronized</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -1490,13 +1586,23 @@ const NFTPage = () => {
                   <span className="text-gray-500 font-bold">Registry Price:</span>
                   <span className="text-white font-black">{nft.price} ETH</span>
                 </div>
+                {nft.isLazy && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 font-bold">Minting Fee (Lazy):</span>
+                    <span className="text-white font-black font-mono">0.005 ETH</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-bold">Gas (Protocol Feed):</span>
-                  <span className="text-green-500 font-black">Sponsored</span>
+                  <span className="text-gray-500 font-bold">{nft.isLazy ? 'Collector Gas:' : 'Gas (Protocol Feed):'}</span>
+                  <span className={cn("font-black", nft.isLazy ? "text-white" : "text-green-500")}>
+                    {nft.isLazy ? '0.002 ETH' : 'Sponsored'}
+                  </span>
                 </div>
                 <div className="pt-4 border-t border-white/5 flex justify-between items-center">
                   <span className="text-lg font-black text-white">Total Amount:</span>
-                  <span className="text-2xl font-black text-[#00d2ff]">{nft.price} ETH</span>
+                  <span className="text-2xl font-black text-[#00d2ff]">
+                    {(parseFloat(nft.price.toString()) + (nft.isLazy ? 0.007 : 0)).toFixed(3)} ETH
+                  </span>
                 </div>
               </div>
 
@@ -1743,24 +1849,17 @@ const Profile = () => {
       <div className="flex flex-col md:flex-row items-center md:items-end gap-10 mb-20">
         <div className="w-40 h-40 rounded-[48px] bg-gradient-to-br from-[#00d2ff] to-[#9d50bb] p-1 shadow-2xl">
           <div className="w-full h-full rounded-[44px] bg-[#050508] flex items-center justify-center overflow-hidden">
-            <Identity 
-              address={profileAddress as `0x${string}`} 
-              className="w-full h-full"
-            >
-              <Avatar className="w-full h-full border-none" />
-            </Identity>
+            <User size={80} className="text-white/20" />
           </div>
         </div>
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-5xl font-black text-white tracking-tighter mb-4">
-            <Identity address={profileAddress as `0x${string}`} className="text-white">
-              <Name />
-            </Identity>
+            {profileAddress === currentAddress ? 'Your Nexus Profile' : 'Operator Archive'}
           </h1>
           <div className="flex items-center justify-center md:justify-start gap-4 mb-8">
-            <Identity address={profileAddress as `0x${string}`}>
-              <Address className="text-gray-500 font-mono bg-white/5 px-4 py-1.5 rounded-full border border-white/5 text-sm" />
-            </Identity>
+            <span className="font-mono text-gray-500 bg-white/5 px-4 py-1.5 rounded-full border border-white/5 text-sm">
+              {profileAddress}
+            </span>
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
           </div>
 
@@ -1965,61 +2064,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default function App() {
-  const [isSdkReady, setIsSdkReady] = useState(false);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await sdk.actions.ready();
-        setIsSdkReady(true);
-      } catch (e) {
-        console.error('Frame SDK init failed', e);
-        setIsSdkReady(true);
-      }
-    };
-    if (sdk) {
-      init();
-    }
-  }, []);
-
-  if (!isSdkReady) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#050508] text-[#00d2ff]">
-        <div className="flex flex-col items-center gap-4">
-          <Zap size={48} className="animate-pulse" />
-          <span className="font-black uppercase tracking-[0.3em] text-xs">Aether Registry Initializing...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <OnchainKitProvider
-          apiKey={(import.meta as any).env.VITE_ONCHAINKIT_API_KEY || ''}
-          chain={base}
-          config={{ appearance: { mode: 'dark' } }}
-        >
-          <MintedNFTsProvider>
-            <FavoritesProvider>
-              <Router>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/explore" element={<Explore />} />
-                    <Route path="/collection/:id" element={<CollectionPage />} />
-                    <Route path="/nft/:id" element={<NFTPage />} />
-                    <Route path="/profile/:address" element={<Profile />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
-                    <Route path="/create" element={<CreateNFT />} />
-                  </Routes>
-                </Layout>
-              </Router>
-            </FavoritesProvider>
-          </MintedNFTsProvider>
-        </OnchainKitProvider>
+        <MintedNFTsProvider>
+          <FavoritesProvider>
+            <Router>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/collection/:id" element={<CollectionPage />} />
+                  <Route path="/nft/:id" element={<NFTPage />} />
+                  <Route path="/profile/:address" element={<Profile />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
+                  <Route path="/create" element={<CreateNFT />} />
+                </Routes>
+              </Layout>
+            </Router>
+          </FavoritesProvider>
+        </MintedNFTsProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
