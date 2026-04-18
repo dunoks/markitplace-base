@@ -422,6 +422,37 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
   );
 };
 
+const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative w-full max-w-lg glass rounded-[40px] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10"
+      >
+        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+          <h3 className="text-xl font-black text-white uppercase tracking-widest">{title}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all text-gray-500 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-8">
+          {children}
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const collectionParam = searchParams.get('collection');
@@ -1080,6 +1111,7 @@ const NFTPage = () => {
   const [bidsCount, setBidsCount] = useState(nft?.bidsCount || 0);
   const [bidder, setBidder] = useState(nft?.highestBidder || 'None');
   const [bidError, setBidError] = useState('');
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
 
   const { currentPrice, lastDirection, pulse } = useLivePrice(nft?.id || '0', nft?.price || 0);
 
@@ -1104,8 +1136,10 @@ const NFTPage = () => {
     setPurchaseStatus('pending');
     setTimeout(() => {
       setPurchaseStatus('success');
-      setTimeout(() => setPurchaseStatus('idle'), 3000);
-      setIsConfirming(false);
+      setTimeout(() => {
+        setPurchaseStatus('idle');
+        setIsBuyModalOpen(false);
+      }, 3000);
     }, 2000);
   };
 
@@ -1388,42 +1422,27 @@ const NFTPage = () => {
                           {bidError}
                         </motion.p>
                       )}
-                      <button 
-                        onClick={handlePlaceBid}
-                        disabled={purchaseStatus === 'pending'}
-                        className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
-                      >
-                        <Gavel /> {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Review Protocol Bid'}
-                      </button>
+                      <div className="flex flex-col gap-3">
+                        <button 
+                          onClick={handlePlaceBid}
+                          disabled={purchaseStatus === 'pending'}
+                          className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+                        >
+                          <Gavel /> {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Place Bid'}
+                        </button>
+                        <button 
+                          onClick={() => setIsBuyModalOpen(true)}
+                          className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl py-4 font-black transition-all flex items-center justify-center gap-2"
+                        >
+                          <ShoppingBag size={18} /> Buy Now for {nft.price} ETH
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
-              ) : isConfirming ? (
-                <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="flex flex-col gap-4"
-                >
-                  <p className="text-center text-sm font-bold text-gray-400 mb-2">Are you sure you want to purchase this asset at <span className="text-white font-black">{currentPrice} ETH</span>?</p>
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={handlePurchase}
-                      disabled={purchaseStatus === 'pending'}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-black rounded-2xl py-5 font-black text-xl shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                    >
-                      {purchaseStatus === 'pending' ? 'Processing...' : 'Yes, Buy Now'}
-                    </button>
-                    <button 
-                      onClick={() => setIsConfirming(false)}
-                      className="px-8 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black transition-all"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </motion.div>
               ) : (
                 <button 
-                  onClick={() => setIsConfirming(true)}
+                  onClick={() => setIsBuyModalOpen(true)}
                   className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                 >
                   <ShoppingBag /> Buy Now
@@ -1431,6 +1450,60 @@ const NFTPage = () => {
               )}
             </div>
           </div>
+
+          {/* Purchase Confirmation Modal */}
+          <Modal 
+            isOpen={isBuyModalOpen} 
+            onClose={() => setIsBuyModalOpen(false)} 
+            title="Finalize Acquisition"
+          >
+            <div className="flex flex-col gap-8">
+              <div className="flex gap-6 items-center bg-white/5 p-4 rounded-3xl border border-white/10">
+                <img src={nft.image} alt={nft.name} className="w-24 h-24 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                <div>
+                  <h4 className="text-white font-black">{nft.name}</h4>
+                  <p className="text-xs text-[#00d2ff] font-black uppercase tracking-widest">{nft.collection}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-bold">Registry Price:</span>
+                  <span className="text-white font-black">{nft.price} ETH</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-bold">Gas (Protocol Feed):</span>
+                  <span className="text-green-500 font-black">Sponsored</span>
+                </div>
+                <div className="pt-4 border-t border-white/5 flex justify-between items-center">
+                  <span className="text-lg font-black text-white">Total Amount:</span>
+                  <span className="text-2xl font-black text-[#00d2ff]">{nft.price} ETH</span>
+                </div>
+              </div>
+
+              {purchaseStatus === 'success' ? (
+                <div className="bg-green-500/20 py-4 rounded-2xl text-green-500 font-black text-center animate-pulse">
+                  Acquisition Secured!
+                </div>
+              ) : (
+                <div className="flex gap-4">
+                  <button 
+                    onClick={handlePurchase}
+                    disabled={purchaseStatus === 'pending'}
+                    className="flex-1 bg-[#00d2ff] hover:bg-[#00c0e5] text-black font-black py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(0,210,255,0.2)] disabled:opacity-50"
+                  >
+                    {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Confirm Purchase'}
+                  </button>
+                  <button 
+                    onClick={() => setIsBuyModalOpen(false)}
+                    className="px-6 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </Modal>
 
           <div className="glass rounded-[32px] overflow-hidden shadow-sm">
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
