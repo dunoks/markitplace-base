@@ -537,6 +537,11 @@ const NFTPage = () => {
     const bidValue = parseFloat(bidAmount);
     if (!bidValue || bidValue <= currentHighestBid) return;
 
+    if (!isConfirming) {
+      setIsConfirming(true);
+      return;
+    }
+
     setPurchaseStatus('pending');
     setTimeout(() => {
       setPurchaseStatus('success');
@@ -676,24 +681,64 @@ const NFTPage = () => {
                 </motion.div>
               ) : nft.isAuction ? (
                 <div className="flex flex-col gap-4">
-                  <div className="relative group">
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      placeholder={`Min bid: ${(currentHighestBid + 0.01).toFixed(2)} ETH`}
-                      value={bidAmount}
-                      onChange={(e) => setBidAmount(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 group-focus-within:border-[#00d2ff]/50 rounded-2xl py-6 px-6 text-xl text-white font-black outline-none transition-all placeholder:text-gray-700"
-                    />
-                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00d2ff] font-black">ETH</div>
-                  </div>
-                  <button 
-                    onClick={handlePlaceBid}
-                    disabled={purchaseStatus === 'pending' || !bidAmount || parseFloat(bidAmount) <= currentHighestBid}
-                    className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
-                  >
-                    <Gavel /> {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Place Protocol Bid'}
-                  </button>
+                  {isConfirming ? (
+                    <motion.div 
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="flex flex-col gap-4"
+                    >
+                      <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-2">
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Protocol Bid Review</span>
+                          <span className="text-[#00d2ff] font-black text-[10px] uppercase">Aether Verified</span>
+                        </div>
+                        <div className="flex justify-between items-baseline mb-2">
+                          <span className="text-gray-500 font-bold text-sm">Your Proposal:</span>
+                          <span className="text-3xl font-black text-white">{bidAmount} ETH</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-gray-600">Protocol Fee:</span>
+                          <span className="text-gray-400">0.00 ETH (Free)</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={handlePlaceBid}
+                          disabled={purchaseStatus === 'pending'}
+                          className="flex-1 bg-green-500 hover:bg-green-600 text-black rounded-2xl py-5 font-black text-xl shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                        >
+                          {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Confirm Bid'}
+                        </button>
+                        <button 
+                          onClick={() => setIsConfirming(false)}
+                          className="px-8 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <div className="relative group">
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          placeholder={`Min bid: ${(currentHighestBid + 0.01).toFixed(2)} ETH`}
+                          value={bidAmount}
+                          onChange={(e) => setBidAmount(e.target.value)}
+                          className="w-full bg-black/40 border border-white/10 group-focus-within:border-[#00d2ff]/50 rounded-2xl py-6 px-6 text-xl text-white font-black outline-none transition-all placeholder:text-gray-700"
+                        />
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[#00d2ff] font-black">ETH</div>
+                      </div>
+                      <button 
+                        onClick={handlePlaceBid}
+                        disabled={purchaseStatus === 'pending' || !bidAmount || parseFloat(bidAmount) <= currentHighestBid}
+                        className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+                      >
+                        <Gavel /> {purchaseStatus === 'pending' ? 'Broadcasting...' : 'Review Protocol Bid'}
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : isConfirming ? (
                 <motion.div 
