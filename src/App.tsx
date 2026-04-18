@@ -363,7 +363,10 @@ interface NFTCardProps {
 const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
   const { currentPrice, lastDirection, pulse } = useLivePrice(nft.id, nft.price);
   const { toggleFavorite, isFavorite } = useFavorites();
+  const { allCollections } = useMintedNFTs();
   const liked = isFavorite(nft.id);
+  
+  const isColVerified = allCollections.find(c => c.id === nft.collectionId)?.isVerified;
   
   return (
     <div className="relative group/card h-full">
@@ -457,8 +460,11 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
               </div>
             </div>
             <div className="flex justify-between items-center pt-4 border-t border-white/5">
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{nft.collection}</p>
-              <p className="text-[10px] text-gray-500 font-mono">
+              <p className="text-xs text-gray-400 font-black uppercase tracking-widest flex items-center gap-1.5 truncate">
+                {nft.collection}
+                {isColVerified && <BadgeCheck size={12} className="text-[#00d2ff] fill-[#00d2ff]/10 shrink-0" />}
+              </p>
+              <p className="text-[10px] text-gray-500 font-mono shrink-0">
                 {nft.isAuction ? `Bids: ${nft.bidsCount}` : `L.S: ${nft.lastSale ?? '--'} ETH`}
               </p>
             </div>
@@ -1418,14 +1424,24 @@ const ManageCollection = () => {
                   </div>
                   <button 
                     onClick={() => setFormData({...formData, isVerified: !formData.isVerified})}
-                    className={cn(
-                      "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      formData.isVerified 
-                        ? "bg-[#00d2ff] text-black shadow-[0_0_20px_rgba(0,210,255,0.4)]" 
-                        : "bg-white/5 text-gray-500 border border-white/10 hover:border-white/20"
-                    )}
+                    className="group flex items-center gap-3 focus:outline-none"
                   >
-                    {formData.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
+                    <div className={cn(
+                      "w-14 h-8 rounded-full p-1 transition-all duration-300 relative",
+                      formData.isVerified ? "bg-[#00d2ff]" : "bg-white/10"
+                    )}>
+                      <motion.div 
+                        animate={{ x: formData.isVerified ? 24 : 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        className="w-6 h-6 bg-white rounded-full shadow-lg"
+                      />
+                    </div>
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-widest transition-colors",
+                      formData.isVerified ? "text-[#00d2ff]" : "text-gray-500"
+                    )}>
+                      {formData.isVerified ? 'PROTOCOL VERIFIED' : 'PENDING VALIDATION'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1753,11 +1769,21 @@ const NFTPage = () => {
                 <span className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] block">
                   {nft.isAuction ? 'CURRENT HIGHEST BID' : 'FIXED MARKET PRICE'}
                 </span>
-                {nft.isAuction && (
-                  <span className="text-[10px] font-black text-[#00d2ff] uppercase tracking-widest bg-[#00d2ff]/10 w-fit px-3 py-1 rounded-full border border-[#00d2ff]/20">
-                    Buy Now for {nft.price} ETH
-                  </span>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  {nft.isAuction && (
+                    <span className="text-[10px] font-black text-[#00d2ff] uppercase tracking-widest bg-[#00d2ff]/10 w-fit px-3 py-1 rounded-full border border-[#00d2ff]/20">
+                      Buy Now for {nft.price} ETH
+                    </span>
+                  )}
+                  {nft.isAuction && nft.auctionEnd && (
+                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                      <Clock size={12} className="text-gray-500" />
+                      <div className="text-[10px] font-black text-white">
+                        <Countdown end={nft.auctionEnd} />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between items-start mb-4">
                 <div /> {/* Empty space where previous label was */}
