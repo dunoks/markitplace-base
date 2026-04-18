@@ -64,6 +64,48 @@ export const MOCK_COLLECTIONS: Collection[] = [
   }
 ];
 
+export interface Activity {
+  id: string;
+  type: 'sale' | 'transfer' | 'list' | 'bid';
+  nftName: string;
+  nftImage: string;
+  price?: number;
+  from: string;
+  to?: string;
+  timestamp: string;
+}
+
+export const MOCK_ACTIVITY: Activity[] = [
+  {
+    id: 'a1',
+    type: 'sale',
+    nftName: 'Base Ape #5521',
+    nftImage: 'https://picsum.photos/seed/ape1/200/200',
+    price: 0.22,
+    from: '0x123...456',
+    to: '0xYou',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+  },
+  {
+    id: 'a2',
+    type: 'list',
+    nftName: 'Realm #104',
+    nftImage: 'https://picsum.photos/seed/realm1/200/200',
+    price: 1.75,
+    from: '0xABC...DEF',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+  },
+  {
+    id: 'a3',
+    type: 'bid',
+    nftName: 'Base Ape #12',
+    nftImage: 'https://picsum.photos/seed/ape2/200/200',
+    price: 0.75,
+    from: '0xYou',
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+  }
+];
+
 export const MOCK_NFTS: NFT[] = [
   {
     id: '1',

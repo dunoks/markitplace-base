@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
-import { MOCK_NFTS, MOCK_COLLECTIONS } from './lib/data';
+import { MOCK_NFTS, MOCK_COLLECTIONS, MOCK_ACTIVITY } from './lib/data';
 
 import { formatAddress } from './lib/utils';
 
@@ -165,6 +165,9 @@ const Navbar = () => {
         <div className="flex items-center gap-3">
           {isConnected ? (
             <div className="flex items-center gap-3">
+              <Link to={`/profile/${address}`} className="hidden sm:flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white p-2.5 rounded-xl border border-white/10 transition-all">
+                <User size={18} />
+              </Link>
               <button 
                 onClick={() => disconnect()}
                 className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl font-bold border border-white/10 transition-all"
@@ -914,6 +917,157 @@ const Home = () => {
   );
 };
 
+const Profile = () => {
+  const { address } = useParams();
+  const { address: currentAddress } = useAccount();
+  const [activeTab, setActiveTab] = useState<'assets' | 'activity'>('assets');
+
+  const profileAddress = address || currentAddress;
+  const ownedNfts = MOCK_NFTS.filter(n => n.owner === profileAddress || (profileAddress === currentAddress && n.owner.includes('You')));
+  const activities = MOCK_ACTIVITY.filter(a => a.from === profileAddress || a.to === profileAddress || (profileAddress === currentAddress && (a.from.includes('You') || a.to?.includes('You'))));
+
+  if (!profileAddress) return <div className="pt-32 text-center h-screen">Please connect your wallet to view profile</div>;
+
+  const stats = [
+    { label: 'Total Items', value: ownedNfts.length },
+    { label: 'Total Value', value: `${ownedNfts.reduce((acc, n) => acc + (n.isAuction ? n.currentBid || 0 : n.price), 0).toFixed(2)} ETH` },
+    { label: 'Collections', value: new Set(ownedNfts.map(n => n.collectionId)).size },
+    { label: 'Avg Floor', value: '0.45 ETH' },
+  ];
+
+  return (
+    <div className="pt-32 max-w-7xl mx-auto px-4 md:px-8 pb-32">
+      {/* Profile Header */}
+      <div className="flex flex-col md:flex-row items-center md:items-end gap-10 mb-20">
+        <div className="w-40 h-40 rounded-[48px] bg-gradient-to-br from-[#00d2ff] to-[#9d50bb] p-1 shadow-2xl">
+          <div className="w-full h-full rounded-[44px] bg-[#050508] flex items-center justify-center overflow-hidden">
+            <User size={80} className="text-white/20" />
+          </div>
+        </div>
+        <div className="flex-1 text-center md:text-left">
+          <h1 className="text-5xl font-black text-white tracking-tighter mb-4">
+            {profileAddress === currentAddress ? 'Your Nexus Profile' : 'Operator Archive'}
+          </h1>
+          <div className="flex items-center justify-center md:justify-start gap-4 mb-8">
+            <span className="font-mono text-gray-500 bg-white/5 px-4 py-1.5 rounded-full border border-white/5 text-sm">
+              {profileAddress}
+            </span>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {stats.map((stat, idx) => (
+              <div key={idx} className="glass p-6 rounded-[24px] border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block mb-1">{stat.label}</span>
+                <span className="text-xl font-black text-white tracking-tight">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-white/5 mb-12 flex gap-12">
+        <button 
+          onClick={() => setActiveTab('assets')}
+          className={cn(
+            "text-xs font-black uppercase tracking-[0.3em] pb-4 transition-all",
+            activeTab === 'assets' ? "text-[#00d2ff] border-b-2 border-[#00d2ff]" : "text-gray-500 hover:text-white"
+          )}
+        >
+          Owned Assets
+        </button>
+        <button 
+          onClick={() => setActiveTab('activity')}
+          className={cn(
+            "text-xs font-black uppercase tracking-[0.3em] pb-4 transition-all",
+            activeTab === 'activity' ? "text-[#00d2ff] border-b-2 border-[#00d2ff]" : "text-gray-500 hover:text-white"
+          )}
+        >
+          Protocol Activity
+        </button>
+      </div>
+
+      {/* Content */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'assets' ? (
+          <motion.div 
+            key="assets"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+          >
+            {ownedNfts.length > 0 ? (
+              ownedNfts.map(nft => <NFTCard key={nft.id} nft={nft} />)
+            ) : (
+              <div className="col-span-full h-80 glass rounded-[40px] flex flex-col items-center justify-center text-gray-500">
+                <ShoppingBag size={48} className="mb-4 opacity-20" />
+                <p className="font-black uppercase tracking-widest text-xs">No assets detected in sector</p>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="activity"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex flex-col gap-4"
+          >
+            {activities.length > 0 ? (
+              activities.map(activity => (
+                <div key={activity.id} className="glass p-6 rounded-[24px] flex items-center gap-6 group hover:border-[#00d2ff]/30 transition-all">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                    <img src={activity.nftImage} alt={activity.nftName} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                        activity.type === 'sale' ? "bg-green-500/10 border-green-500/20 text-green-400" :
+                        activity.type === 'bid' ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
+                        "bg-white/5 border-white/10 text-gray-400"
+                      )}>
+                        {activity.type}
+                      </span>
+                      <span className="text-[10px] font-mono text-gray-600">
+                        {new Date(activity.timestamp).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-white truncate">{activity.nftName}</h4>
+                  </div>
+                  <div className="text-right hidden sm:block">
+                    <div className="text-lg font-black text-white">{activity.price ? `${activity.price} ETH` : '--'}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-gray-500">Value Transferred</div>
+                  </div>
+                  <div className="flex flex-col gap-1 items-end text-[10px] font-mono whitespace-nowrap">
+                    <div className="flex gap-2">
+                      <span className="text-gray-600">FROM:</span>
+                      <span className="text-[#00d2ff]">{activity.from}</span>
+                    </div>
+                    {activity.to && (
+                      <div className="flex gap-2">
+                        <span className="text-gray-600">TO:</span>
+                        <span className="text-[#9d50bb]">{activity.to}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="h-80 glass rounded-[40px] flex flex-col items-center justify-center text-gray-500">
+                <BarChart3 size={48} className="mb-4 opacity-20" />
+                <p className="font-black uppercase tracking-widest text-xs">No protocol logs found</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-[#050508] text-white font-sans selection:bg-[#00d2ff]/30 selection:text-white">
@@ -985,6 +1139,8 @@ export default function App() {
               <Route path="/explore" element={<Explore />} />
               <Route path="/collection/:id" element={<CollectionPage />} />
               <Route path="/nft/:id" element={<NFTPage />} />
+              <Route path="/profile/:address" element={<Profile />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
               <Route path="/create" element={<div className="pt-32 text-center h-screen">Mint your masterpiece</div>} />
             </Routes>
