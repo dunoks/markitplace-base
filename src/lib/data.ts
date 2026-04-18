@@ -14,6 +14,7 @@ export interface NFT {
   currentBid?: number;
   highestBidder?: string;
   bidsCount?: number;
+  isVerified?: boolean;
 }
 
 export interface Collection {
@@ -26,6 +27,7 @@ export interface Collection {
   items: number;
   owners: number;
   description: string;
+  isVerified?: boolean;
 }
 
 export const MOCK_COLLECTIONS: Collection[] = [
@@ -38,7 +40,8 @@ export const MOCK_COLLECTIONS: Collection[] = [
     volume: 1250,
     items: 10000,
     owners: 4500,
-    description: 'The premier ape collection on the Base network. High utility, legendary community.'
+    description: 'The premier ape collection on the Base network. High utility, legendary community.',
+    isVerified: true
   },
   {
     id: 'eth-realms',
@@ -49,7 +52,8 @@ export const MOCK_COLLECTIONS: Collection[] = [
     volume: 8900,
     items: 5000,
     owners: 2100,
-    description: 'Procedural landscapes stored entirely on-chain. Explore the vastness of the digital realm.'
+    description: 'Procedural landscapes stored entirely on-chain. Explore the vastness of the digital realm.',
+    isVerified: true
   },
   {
     id: 'cyber-runners',
@@ -122,7 +126,8 @@ export const MOCK_NFTS: NFT[] = [
     currentBid: 0.25,
     minBid: 0.2,
     bidsCount: 12,
-    highestBidder: '0x789...abc'
+    highestBidder: '0x789...abc',
+    isVerified: true
   },
   {
     id: '2',
@@ -139,7 +144,8 @@ export const MOCK_NFTS: NFT[] = [
     currentBid: 1.62,
     minBid: 1.1,
     bidsCount: 5,
-    highestBidder: '0xdef...ghi'
+    highestBidder: '0xdef...ghi',
+    isVerified: true
   },
   {
     id: '3',

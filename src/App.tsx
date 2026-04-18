@@ -37,7 +37,8 @@ import {
   Clock,
   Sparkles,
   Zap,
-  Filter
+  Filter,
+  BadgeCheck
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
@@ -270,7 +271,10 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
         </div>
         <div className="p-6">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-lg text-white group-hover:text-[#00d2ff] transition-colors truncate">{nft.name}</h3>
+            <h3 className="font-bold text-lg text-white group-hover:text-[#00d2ff] transition-colors truncate flex items-center gap-1.5">
+              {nft.name}
+              {nft.isVerified && <BadgeCheck size={18} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+            </h3>
             <div className={cn(
               "flex items-center gap-1 transition-colors duration-500",
               pulse ? (lastDirection === 'up' ? 'text-green-400' : 'text-red-400') : 'text-[#00d2ff]'
@@ -523,8 +527,14 @@ const Explore = () => {
                           >
                             <img src={nft.image} alt="" className="w-14 h-14 rounded-2xl object-cover border border-white/10 group-hover/item:border-[#00d2ff]/40 transition-colors" />
                             <div>
-                              <div className="font-bold text-white mb-0.5 text-lg">{nft.name}</div>
-                              <div className="text-[10px] font-black uppercase tracking-widest text-[#9d50bb]">{nft.collection}</div>
+                              <div className="font-bold text-white mb-0.5 text-lg flex items-center gap-1.5">
+                                {nft.name}
+                                {nft.isVerified && <BadgeCheck size={16} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+                              </div>
+                              <div className="text-[10px] font-black uppercase tracking-widest text-[#9d50bb] flex items-center gap-1">
+                                {nft.collection}
+                                {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={10} className="fill-[#9d50bb]/10" />}
+                              </div>
                             </div>
                             <div className="ml-auto flex flex-col items-end">
                               <div className="flex items-center gap-1.5 text-[#00d2ff]">
@@ -616,7 +626,10 @@ const CollectionPage = () => {
         <div className="flex flex-col md:flex-row gap-12 items-end">
           <img src={collection.logo} alt={collection.name} className="w-48 h-48 rounded-[40px] border-8 border-[#050508] shadow-2xl shadow-black/50" referrerPolicy="no-referrer" />
           <div className="flex-1 pb-4">
-            <h1 className="text-7xl font-black text-white tracking-tighter mb-8 leading-none">{collection.name}</h1>
+            <h1 className="text-7xl font-black text-white tracking-tighter mb-8 leading-none flex items-center gap-4">
+              {collection.name}
+              {collection.isVerified && <BadgeCheck size={48} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+            </h1>
             <div className="flex flex-wrap gap-12 glass p-8 rounded-[32px] w-fit">
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-black text-gray-500 tracking-widest block mb-2">Assets</span>
@@ -760,10 +773,14 @@ const NFTPage = () => {
         {/* Right: Info */}
         <div className="flex flex-col gap-10">
           <div>
-            <Link to={`/collection/${nft.collectionId}`} className="text-[#00d2ff] font-black uppercase tracking-widest text-xs hover:underline mb-4 block">
+            <Link to={`/collection/${nft.collectionId}`} className="text-[#00d2ff] font-black uppercase tracking-widest text-xs hover:underline mb-4 flex items-center gap-1.5">
               {nft.collection}
+              {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={14} className="fill-[#00d2ff]/10" />}
             </Link>
-            <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9]">{nft.name}</h1>
+            <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9] flex items-center gap-3">
+              {nft.name}
+              {nft.isVerified && <BadgeCheck size={32} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+            </h1>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Registry Holder</span>
@@ -1071,7 +1088,10 @@ const Home = () => {
                   <div className="flex flex-col gap-6">
                     <img src={col.logo} alt={col.name} className="w-20 h-20 rounded-3xl border border-white/20 shadow-[-10px_10px_20px_rgba(0,0,0,0.5)]" referrerPolicy="no-referrer" />
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-3 tracking-tighter group-hover:text-[#00d2ff] transition-colors">{col.name}</h3>
+                      <h3 className="text-3xl font-black text-white mb-3 tracking-tighter group-hover:text-[#00d2ff] transition-colors flex items-center gap-2">
+                        {col.name}
+                        {col.isVerified && <BadgeCheck size={24} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+                      </h3>
                       <div className="flex gap-8">
                         <div>
                           <span className="text-[10px] uppercase font-black text-gray-500 tracking-widest block mb-1">Floor</span>
