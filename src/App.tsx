@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -33,7 +34,10 @@ import {
   TrendingUp,
   TrendingDown,
   Gavel,
-  Clock
+  Clock,
+  Sparkles,
+  Zap,
+  Filter
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
@@ -309,11 +313,72 @@ const Explore = () => {
   const [selectedRarity, setSelectedRarity] = useState<string[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<string>(collectionParam || 'all');
 
+  // Search & AI States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<typeof MOCK_NFTS>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAiSearching, setIsAiSearching] = useState(false);
+
   useEffect(() => {
     if (collectionParam) {
       setSelectedCollection(collectionParam);
     }
   }, [collectionParam]);
+
+  // Auto-suggestions logic
+  useEffect(() => {
+    if (searchQuery.trim().length > 1) {
+      const matches = MOCK_NFTS.filter(nft => 
+        nft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        nft.collection.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 5);
+      setSuggestions(matches);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchQuery]);
+
+  const handleAiSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsAiSearching(true);
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Parse this NFT search query: "${searchQuery}". 
+        Available Collections: ${MOCK_COLLECTIONS.map(c => `${c.id} (${c.name})`).join(', ')}.
+        Available Rarities: Common, Rare, Epic, Legendary.
+        Return JSON format with: minPrice (number or null), maxPrice (number or null), collectionId (string or "all"), rarities (array of strings).`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              minPrice: { type: Type.NUMBER },
+              maxPrice: { type: Type.NUMBER },
+              collectionId: { type: Type.STRING },
+              rarities: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+          }
+        }
+      });
+      
+      const result = JSON.parse(response.text);
+      if (result.minPrice !== undefined) setMinPrice(result.minPrice?.toString() || '');
+      if (result.maxPrice !== undefined) setMaxPrice(result.maxPrice?.toString() || '');
+      if (result.collectionId) setSelectedCollection(result.collectionId);
+      if (result.rarities) setSelectedRarity(result.rarities);
+      
+      setShowSuggestions(false);
+    } catch (error) {
+      console.error("AI Search Error:", error);
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
 
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
 
@@ -322,7 +387,10 @@ const Explore = () => {
                       (!maxPrice || nft.price <= parseFloat(maxPrice));
     const rarityMatch = selectedRarity.length === 0 || (nft.rarity && selectedRarity.includes(nft.rarity)) || (!nft.rarity && selectedRarity.includes('Common'));
     const collectionMatch = selectedCollection === 'all' || nft.collectionId === selectedCollection;
-    return priceMatch && rarityMatch && collectionMatch;
+    const queryMatch = !searchQuery || 
+                      nft.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      nft.collection.toLowerCase().includes(searchQuery.toLowerCase());
+    return priceMatch && rarityMatch && collectionMatch && queryMatch;
   });
 
   const toggleRarity = (rarity: string) => {
@@ -417,9 +485,99 @@ const Explore = () => {
 
         {/* Results */}
         <div className="flex-1">
-          <div className="flex justify-between items-end mb-8">
-            <h1 className="text-5xl font-black text-white tracking-tighter">Explore Assets</h1>
-            <span className="text-gray-500 font-mono text-sm">{filteredNfts.length} Results</span>
+          {/* Enhanced Search Header */}
+          <div className="mb-12 relative">
+            <div className="flex flex-col md:flex-row gap-4 items-center mb-10">
+              <div className="relative flex-1 group w-full">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#00d2ff] transition-colors">
+                  <Search size={22} />
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Search assets, collections, or AI queries (e.g. 'Epic apes under 1 ETH')..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  className="w-full bg-white/5 border border-white/10 rounded-[32px] py-6 pl-14 pr-6 text-lg text-white font-medium outline-none focus:border-[#00d2ff]/40 focus:bg-white/[0.07] transition-all shadow-2xl"
+                />
+                
+                {/* Suggestions Dropdown */}
+                <AnimatePresence>
+                  {showSuggestions && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 right-0 mt-4 glass rounded-[36px] border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.6)] z-50 overflow-hidden backdrop-blur-3xl"
+                    >
+                      <div className="p-3">
+                        <div className="px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] border-b border-white/5 mb-2">Registry Matches</div>
+                        {suggestions.map(nft => (
+                          <button
+                            key={nft.id}
+                            onClick={() => {
+                              setSearchQuery(nft.name);
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full flex items-center gap-5 p-4 hover:bg-white/5 rounded-2xl transition-all text-left group/item"
+                          >
+                            <img src={nft.image} alt="" className="w-14 h-14 rounded-2xl object-cover border border-white/10 group-hover/item:border-[#00d2ff]/40 transition-colors" />
+                            <div>
+                              <div className="font-bold text-white mb-0.5 text-lg">{nft.name}</div>
+                              <div className="text-[10px] font-black uppercase tracking-widest text-[#9d50bb]">{nft.collection}</div>
+                            </div>
+                            <div className="ml-auto flex flex-col items-end">
+                              <div className="flex items-center gap-1.5 text-[#00d2ff]">
+                                <span className="font-black text-xl">{nft.price}</span>
+                                <span className="text-[10px] font-bold">ETH</span>
+                              </div>
+                              <span className="text-[10px] text-gray-600 font-mono capitalize">{nft.rarity || 'Common'}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <button 
+                onClick={handleAiSearch}
+                disabled={isAiSearching || !searchQuery}
+                className="bg-gradient-to-r from-[#9d50bb] to-[#6e48aa] hover:from-[#ab5cc9] hover:to-[#7b53c0] text-white px-10 py-6 rounded-[32px] font-black tracking-tight flex items-center gap-3 shadow-[0_10px_30px_rgba(157,80,187,0.3)] transition-all disabled:opacity-50 active:scale-95 shrink-0 w-full md:w-auto overflow-hidden relative group"
+              >
+                {isAiSearching ? (
+                  <>
+                    <Zap size={20} className="animate-spin" /> Analyzing Syntax...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} className="group-hover:rotate-12 transition-transform" /> AI Parse
+                  </>
+                )}
+                {isAiSearching && <div className="absolute inset-0 bg-white/10 animate-pulse" />}
+              </button>
+            </div>
+
+            <div className="flex justify-between items-end border-b border-white/5 pb-8">
+              <div>
+                <h1 className="text-6xl font-black text-white tracking-tighter mb-3 leading-none">Explore Assets</h1>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-[#00d2ff] rounded-full shadow-[0_0_8px_rgba(0,210,255,1)]" />
+                    Registry status: Active
+                  </span>
+                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-[#9d50bb] rounded-full shadow-[0_0_8px_rgba(157,80,187,1)]" />
+                    AI Engine: v3.1 Flash
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-3xl font-black text-white tracking-tighter">{filteredNfts.length}</span>
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Protocol Results</span>
+              </div>
+            </div>
           </div>
           
           {filteredNfts.length > 0 ? (
