@@ -39,9 +39,17 @@ import {
   Zap,
   Filter,
   BadgeCheck,
-  Heart
+  Heart,
+  Upload,
+  Image as ImageIcon,
+  ChevronLeft,
+  Twitter,
+  Send,
+  Link2,
+  Share2
 } from 'lucide-react';
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from './lib/utils';
 import { MOCK_NFTS, MOCK_COLLECTIONS, MOCK_ACTIVITY } from './lib/data';
 
@@ -88,6 +96,46 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 };
 
 export const useFavorites = () => useContext(FavoritesContext);
+
+// Minted NFTs Context
+const MintedNFTsContext = createContext<{
+  mintedNfts: typeof MOCK_NFTS;
+  addMintedNft: (nft: typeof MOCK_NFTS[0]) => void;
+  allNfts: typeof MOCK_NFTS;
+}>({
+  mintedNfts: [],
+  addMintedNft: () => {},
+  allNfts: MOCK_NFTS,
+});
+
+export const MintedNFTsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [mintedNfts, setMintedNfts] = useState<typeof MOCK_NFTS>(() => {
+    try {
+      const saved = localStorage.getItem('aether_minted');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('aether_minted', JSON.stringify(mintedNfts));
+  }, [mintedNfts]);
+
+  const addMintedNft = (nft: typeof MOCK_NFTS[0]) => {
+    setMintedNfts(prev => [nft, ...prev]);
+  };
+
+  const allNfts = [...mintedNfts, ...MOCK_NFTS];
+
+  return (
+    <MintedNFTsContext.Provider value={{ mintedNfts, addMintedNft, allNfts }}>
+      {children}
+    </MintedNFTsContext.Provider>
+  );
+};
+
+export const useMintedNFTs = () => useContext(MintedNFTsContext);
 
 // Wagmi Config
 const config = createConfig({
@@ -377,6 +425,7 @@ const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const collectionParam = searchParams.get('collection');
+  const { allNfts } = useMintedNFTs();
 
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
@@ -398,7 +447,7 @@ const Explore = () => {
   // Auto-suggestions logic
   useEffect(() => {
     if (searchQuery.trim().length > 1) {
-      const matches = MOCK_NFTS.filter(nft => 
+      const matches = allNfts.filter(nft => 
         nft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         nft.collection.toLowerCase().includes(searchQuery.toLowerCase())
       ).slice(0, 5);
@@ -408,7 +457,7 @@ const Explore = () => {
       setSuggestions([]);
       setShowSuggestions(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, allNfts]);
 
   const handleAiSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -452,7 +501,7 @@ const Explore = () => {
 
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
 
-  const filteredNfts = MOCK_NFTS.filter(nft => {
+  const filteredNfts = allNfts.filter(nft => {
     const priceMatch = (!minPrice || nft.price >= parseFloat(minPrice)) && 
                       (!maxPrice || nft.price <= parseFloat(maxPrice));
     const rarityMatch = selectedRarity.length === 0 || (nft.rarity && selectedRarity.includes(nft.rarity)) || (!nft.rarity && selectedRarity.includes('Common'));
@@ -673,10 +722,281 @@ const Explore = () => {
   );
 };
 
+const CreateNFT = () => {
+  const navigate = useNavigate();
+  const { addMintedNft } = useMintedNFTs();
+  const [step, setStep] = useState(1);
+  const [isMinting, setIsMinting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    collection: 'Base Apes Club',
+    rarity: 'Common',
+    image: '',
+    saleType: 'fixed' as 'fixed' | 'auction'
+  });
+
+  const handleMint = () => {
+    setIsMinting(true);
+    // Simulate transaction delay
+    setTimeout(() => {
+      const newNft = {
+        id: `minted-${Date.now()}`,
+        name: formData.name || 'Untitled Discovery',
+        collection: formData.collection,
+        collectionId: formData.collection.toLowerCase().replace(/ /g, '-'),
+        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/800`,
+        price: parseFloat(formData.price) || 0.1,
+        owner: '0xYou (Operator)',
+        rarity: formData.rarity,
+        isAuction: formData.saleType === 'auction',
+        bidsCount: 0,
+        isVerified: false
+      };
+      addMintedNft(newNft);
+      setIsMinting(false);
+      setStep(3); // Show success step
+    }, 3000);
+  };
+
+  return (
+    <div className="pt-32 max-w-4xl mx-auto px-4 pb-32">
+      <div className="mb-12">
+        <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-white flex items-center gap-2 mb-6 group transition-all">
+          <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back to Nexus
+        </button>
+        <h1 className="text-6xl font-black text-white tracking-tighter mb-4">Mint Digital Relic</h1>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Register new assets into the Aether Registry</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Left: Preview */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-32">
+             <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-4">Relic Preview</label>
+             <div className="relative aspect-square rounded-[40px] overflow-hidden border border-white/10 glass group">
+               {formData.image ? (
+                 <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+               ) : (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 gap-4">
+                   <ImageIcon size={48} className="opacity-20" />
+                   <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Signal</span>
+                 </div>
+               )}
+               <div className="absolute bottom-6 left-6 right-6">
+                 <div className="glass p-4 rounded-2xl border-white/20">
+                   <h3 className="font-bold text-white truncate">{formData.name || 'Relic Name'}</h3>
+                   <div className="flex justify-between items-center mt-2">
+                     <span className="text-[#00d2ff] font-black">{formData.price || '0.00'} ETH</span>
+                     <span className="text-[10px] text-gray-500 uppercase font-bold">{formData.rarity}</span>
+                   </div>
+                 </div>
+               </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Right: Form */}
+        <div className="lg:col-span-2">
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
+              <motion.div 
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="glass rounded-[44px] p-10 border-white/5"
+              >
+                <div className="mb-10">
+                  <h2 className="text-2xl font-black text-white mb-2 italic">01. Asset DNA</h2>
+                  <p className="text-gray-500 text-sm">Define the core properties of your discovery</p>
+                </div>
+
+                <div className="space-y-8">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Asset Title</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Apex Runner #01"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white font-medium outline-none focus:border-[#00d2ff]/40 transition-all"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Manifestation (Image URL)</label>
+                     <div className="flex gap-4">
+                       <input 
+                        type="text" 
+                        placeholder="https://ipfs.io/ipfs/..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-5 text-white font-medium outline-none focus:border-[#00d2ff]/40 transition-all font-mono text-xs"
+                        value={formData.image}
+                        onChange={(e) => setFormData({...formData, image: e.target.value})}
+                       />
+                       <button className="bg-white/5 hover:bg-white/10 border border-white/10 p-5 rounded-2xl text-gray-400 transition-all">
+                        <Upload size={20} />
+                       </button>
+                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Lore & Background</label>
+                    <textarea 
+                      rows={4}
+                      placeholder="Describe the origin and utility of this relic..."
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white font-medium outline-none focus:border-[#00d2ff]/40 transition-all resize-none"
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => setStep(2)}
+                    disabled={!formData.name || !formData.image}
+                    className="w-full bg-[#00d2ff] text-black py-5 rounded-[28px] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    Set Protocol Params
+                  </button>
+                </div>
+              </motion.div>
+            ) : step === 2 ? (
+              <motion.div 
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="glass rounded-[44px] p-10 border-white/5"
+              >
+                <div className="mb-10">
+                  <h2 className="text-2xl font-black text-white mb-2 italic">02. Protocol Configuration</h2>
+                  <p className="text-gray-500 text-sm">Configure market and rarity parameters</p>
+                </div>
+
+                <div className="space-y-10">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-4">Market Execution</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => setFormData({...formData, saleType: 'fixed'})}
+                        className={cn(
+                          "p-6 rounded-3xl border transition-all text-left",
+                          formData.saleType === 'fixed' ? "bg-[#00d2ff]/10 border-[#00d2ff] text-white" : "bg-white/5 border-white/5 text-gray-500 hover:border-white/10"
+                        )}
+                      >
+                        <ShoppingBag size={24} className={formData.saleType === 'fixed' ? "text-[#00d2ff] mb-4" : "mb-4"} />
+                        <span className="block font-black uppercase tracking-widest text-[10px]">Fixed Price</span>
+                        <span className="text-[10px] opacity-60">Instant execution</span>
+                      </button>
+                      <button 
+                        onClick={() => setFormData({...formData, saleType: 'auction'})}
+                        className={cn(
+                          "p-6 rounded-3xl border transition-all text-left",
+                          formData.saleType === 'auction' ? "bg-[#9d50bb]/10 border-[#9d50bb] text-white" : "bg-white/5 border-white/5 text-gray-500 hover:border-white/10"
+                        )}
+                      >
+                        <Gavel size={24} className={formData.saleType === 'auction' ? "text-[#9d50bb] mb-4" : "mb-4"} />
+                        <span className="block font-black uppercase tracking-widest text-[10px]">Auction</span>
+                        <span className="text-[10px] opacity-60">Bid competition</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Base Value (ETH)</label>
+                     <input 
+                        type="number" 
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white font-black text-3xl outline-none focus:border-[#00d2ff]/40 transition-all font-mono"
+                        value={formData.price}
+                        onChange={(e) => setFormData({...formData, price: e.target.value})}
+                       />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block mb-3">Registry Tier (Rarity)</label>
+                    <div className="flex flex-wrap gap-3">
+                      {['Common', 'Rare', 'Epic', 'Legendary', 'Mythic'].map(r => (
+                        <button 
+                          key={r}
+                          onClick={() => setFormData({...formData, rarity: r})}
+                          className={cn(
+                            "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                            formData.rarity === r ? "bg-white text-black border-white" : "bg-white/5 text-gray-500 border-white/5 hover:border-white/20"
+                          )}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 pt-4">
+                    <button 
+                      onClick={() => setStep(1)}
+                      className="px-8 py-5 rounded-[28px] bg-white/5 text-white font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
+                    >
+                      Back
+                    </button>
+                    <button 
+                      onClick={handleMint}
+                      disabled={isMinting || !formData.price}
+                      className="flex-1 bg-gradient-to-r from-[#00d2ff] to-[#3a7bd5] text-black py-5 rounded-[28px] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      {isMinting ? (
+                        <>
+                          <Zap size={20} className="animate-spin" /> Sequencing...
+                        </>
+                      ) : (
+                        <>
+                          <PlusSquare size={20} /> Deploy Relic
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="success"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass rounded-[44px] p-16 border-white/10 text-center flex flex-col items-center"
+              >
+                <div className="w-24 h-24 bg-green-500/20 rounded-[32px] flex items-center justify-center text-green-400 mb-8 shadow-[0_0_40px_rgba(34,197,94,0.3)] border border-green-500/30">
+                  <BadgeCheck size={48} />
+                </div>
+                <h2 className="text-4xl font-black text-white mb-4 tracking-tighter">Protocol Deployment Successful</h2>
+                <p className="text-gray-500 mb-12 max-w-sm">Asset <b>{formData.name}</b> has been registered in the Aether Registry and is now visible on the Base network.</p>
+                <div className="flex gap-4 w-full">
+                  <button 
+                    onClick={() => navigate('/explore')}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-white py-5 rounded-[28px] font-black text-xs uppercase tracking-widest transition-all"
+                  >
+                    Marketplace
+                  </button>
+                  <button 
+                    onClick={() => navigate('/profile')}
+                    className="flex-1 bg-[#00d2ff] text-black py-5 rounded-[28px] font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    View In Vault
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+};
 const CollectionPage = () => {
   const { id } = useParams();
+  const { allNfts } = useMintedNFTs();
   const collection = MOCK_COLLECTIONS.find(c => c.id === id);
-  const nfts = MOCK_NFTS.filter(n => n.collectionId === id);
+  const nfts = allNfts.filter(n => n.collectionId === id);
 
   if (!collection) return <div className="pt-32 text-center h-screen">Collection not found</div>;
 
@@ -762,6 +1082,21 @@ const NFTPage = () => {
 
   const { currentPrice, lastDirection, pulse } = useLivePrice(nft?.id || '0', nft?.price || 0);
 
+  const shareUrl = window.location.href;
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setShowShareTooltip(true);
+    setTimeout(() => setShowShareTooltip(false), 2000);
+  };
+
+  const shareOnTwitter = () => {
+    const text = `Check out this digital relic: ${nft?.name} on Aether Protocol!`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(url, '_blank');
+  };
+
   if (!nft) return <div className="pt-32 text-center h-screen font-black text-3xl">Asset not found in registry</div>;
 
   const handlePurchase = () => {
@@ -841,18 +1176,22 @@ const NFTPage = () => {
 
         {/* Right: Info */}
         <div className="flex flex-col gap-10">
-          <div>
-            <Link to={`/collection/${nft.collectionId}`} className="text-[#00d2ff] font-black uppercase tracking-widest text-xs hover:underline mb-4 flex items-center gap-1.5">
-              {nft.collection}
-              {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={14} className="fill-[#00d2ff]/10" />}
-            </Link>
-            <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9] flex items-center gap-3">
-              {nft.name}
-              {nft.isVerified && <BadgeCheck size={32} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+          <div className="flex justify-between items-start">
+            <div>
+              <Link to={`/collection/${nft.collectionId}`} className="text-[#00d2ff] font-black uppercase tracking-widest text-xs hover:underline mb-4 flex items-center gap-1.5">
+                {nft.collection}
+                {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={14} className="fill-[#00d2ff]/10" />}
+              </Link>
+              <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9] flex items-center gap-3">
+                {nft.name}
+                {nft.isVerified && <BadgeCheck size={32} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+              </h1>
+            </div>
+            <div className="flex gap-3">
               <button 
                 onClick={() => toggleFavorite(nft.id)}
                 className={cn(
-                  "p-4 rounded-[28px] border transition-all duration-300 ml-4",
+                  "p-4 rounded-[28px] border transition-all duration-300",
                   liked 
                     ? "bg-red-500/20 border-red-500/30 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" 
                     : "bg-white/5 border-white/10 text-gray-500 hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20"
@@ -860,16 +1199,49 @@ const NFTPage = () => {
               >
                 <Heart size={24} className={liked ? "fill-red-500" : ""} />
               </button>
-            </h1>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Registry Holder</span>
-                <span className="text-[#9d50bb] font-black font-mono text-sm">{nft.owner}</span>
+              <div className="relative">
+                <button 
+                  onClick={copyToClipboard}
+                  className="p-4 rounded-[28px] border border-white/10 bg-white/5 text-gray-500 hover:text-[#00d2ff] hover:bg-[#00d2ff]/5 hover:border-[#00d2ff]/20 transition-all duration-300"
+                >
+                  <Link2 size={24} />
+                </button>
+                <AnimatePresence>
+                  {showShareTooltip && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 bg-[#00d2ff] text-black text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg shadow-blue-500/20"
+                    >
+                      Link Copied!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
-                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Protocol Synchronized</span>
-              </div>
+              <button 
+                onClick={shareOnTwitter}
+                className="p-4 rounded-[28px] border border-white/10 bg-white/5 text-gray-500 hover:text-[#00acee] hover:bg-[#00acee]/5 hover:border-[#00acee]/20 transition-all duration-300"
+              >
+                <Twitter size={24} />
+              </button>
+              <button 
+                className="p-4 rounded-[28px] border border-white/10 bg-white/5 text-gray-500 hover:text-[#5865F2] hover:bg-[#5865F2]/5 hover:border-[#5865F2]/20 transition-all duration-300"
+                onClick={() => window.open(`https://discord.com/channels/@me`, '_blank')}
+              >
+                <Send size={24} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Registry Holder</span>
+              <span className="text-[#9d50bb] font-black font-mono text-sm">{nft.owner}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
+              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Protocol Synchronized</span>
             </div>
           </div>
 
@@ -1062,6 +1434,7 @@ const NFTPage = () => {
 };
 
 const Home = () => {
+  const { allNfts } = useMintedNFTs();
   return (
     <div className="pt-24 pb-20">
       {/* Hero Section */}
@@ -1095,9 +1468,9 @@ const Home = () => {
               <Link to="/explore" className="bg-[#00d2ff] hover:bg-[#00c0e5] text-black px-10 py-5 rounded-[22px] font-black text-xl shadow-[0_10px_30px_rgba(0,210,255,0.2)] transition-all active:scale-95">
                 Explore Items
               </Link>
-              <button className="bg-white/5 hover:bg-white/10 backdrop-blur-xl text-white border border-white/10 px-10 py-5 rounded-[22px] font-black text-xl transition-all active:scale-95">
+              <Link to="/create" className="bg-white/5 hover:bg-white/10 backdrop-blur-xl text-white border border-white/10 px-10 py-5 rounded-[22px] font-black text-xl transition-all active:scale-95">
                 Mint Now
-              </button>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -1211,7 +1584,7 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {MOCK_NFTS.map((nft, idx) => (
+          {allNfts.map((nft, idx) => (
             <NFTCard key={nft.id} nft={nft} />
           ))}
         </div>
@@ -1223,12 +1596,13 @@ const Home = () => {
 const Profile = () => {
   const { address } = useParams();
   const { address: currentAddress } = useAccount();
+  const { allNfts } = useMintedNFTs();
   const [activeTab, setActiveTab] = useState<'assets' | 'activity' | 'favorites'>('assets');
   const { favorites } = useFavorites();
 
   const profileAddress = address || currentAddress;
-  const ownedNfts = MOCK_NFTS.filter(n => n.owner === profileAddress || (profileAddress === currentAddress && n.owner.includes('You')));
-  const favoriteNfts = MOCK_NFTS.filter(n => favorites.includes(n.id));
+  const ownedNfts = allNfts.filter(n => n.owner === profileAddress || (profileAddress === currentAddress && n.owner.includes('You')));
+  const favoriteNfts = allNfts.filter(n => favorites.includes(n.id));
   const activities = MOCK_ACTIVITY.filter(a => a.from === profileAddress || a.to === profileAddress || (profileAddress === currentAddress && (a.from.includes('You') || a.to?.includes('You'))));
 
   if (!profileAddress) return <div className="pt-32 text-center h-screen">Please connect your wallet to view profile</div>;
@@ -1464,22 +1838,24 @@ export default function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <FavoritesProvider>
-          <Router>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/collection/:id" element={<CollectionPage />} />
-                <Route path="/nft/:id" element={<NFTPage />} />
-                <Route path="/profile/:address" element={<Profile />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
-                <Route path="/create" element={<div className="pt-32 text-center h-screen">Mint your masterpiece</div>} />
-              </Routes>
-            </Layout>
-          </Router>
-        </FavoritesProvider>
+        <MintedNFTsProvider>
+          <FavoritesProvider>
+            <Router>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/collection/:id" element={<CollectionPage />} />
+                  <Route path="/nft/:id" element={<NFTPage />} />
+                  <Route path="/profile/:address" element={<Profile />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
+                  <Route path="/create" element={<CreateNFT />} />
+                </Routes>
+              </Layout>
+            </Router>
+          </FavoritesProvider>
+        </MintedNFTsProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
