@@ -2082,9 +2082,9 @@ const NFTPage = () => {
                         </button>
                         <button 
                           onClick={() => setIsBuyModalOpen(true)}
-                          className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl py-4 font-black transition-all flex items-center justify-center gap-2"
+                          className="w-full bg-white hover:bg-gray-200 text-black rounded-2xl py-5 font-black text-xl shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                         >
-                          <ShoppingBag size={18} /> Buy Now for {nft.price} ETH
+                          <ShoppingBag size={20} /> Buy Now for {nft.price} ETH
                         </button>
                       </div>
                     </>
@@ -2094,9 +2094,9 @@ const NFTPage = () => {
                 <div className="flex flex-col gap-3">
                   <button 
                     onClick={() => setIsBuyModalOpen(true)}
-                    className="w-full bg-[#00d2ff] hover:bg-[#00c0e5] text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(0,210,255,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                    className="w-full bg-white hover:bg-gray-200 text-black rounded-2xl py-5 font-black text-2xl shadow-[0_0_25px_rgba(255,255,255,0.2)] transition-all flex items-center justify-center gap-4 active:scale-[0.98]"
                   >
-                    <ShoppingBag /> Buy Now for {nft.price} ETH
+                    <ShoppingBag size={24} /> Buy Now for {nft.price} ETH
                   </button>
                   <p className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest">
                     Asset will be instantly transferred to your vault
@@ -2156,10 +2156,22 @@ const NFTPage = () => {
                 </div>
                 <div className="pt-4 border-t border-white/5 flex justify-between items-center">
                   <span className="text-lg font-black text-white">Total Amount:</span>
-                  <span className="text-2xl font-black text-[#00d2ff]">
-                    {(parseFloat(nft.price.toString()) + (nft.isLazy ? 0.007 : 0)).toFixed(3)} ETH
-                  </span>
+                  <div className="text-right">
+                    <span className="text-3xl font-black text-[#00d2ff]">
+                      {(parseFloat(nft.price.toString()) + (nft.isLazy ? 0.007 : 0)).toFixed(3)} ETH
+                    </span>
+                    <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mt-1">
+                      Final Protocol Calculation
+                    </p>
+                  </div>
                 </div>
+              </div>
+
+              <div className="bg-[#00d2ff]/5 border border-[#00d2ff]/10 rounded-2xl p-4 flex gap-4 items-start">
+                <Box size={20} className="text-[#00d2ff] shrink-0 mt-1" />
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  By confirming, you authorize the instant transfer of the cryptographic record to your connected wallet. This action is irreversible on the Aether Distributed Ledger.
+                </p>
               </div>
 
               {purchaseStatus === 'success' ? (
