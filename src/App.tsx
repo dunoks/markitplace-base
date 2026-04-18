@@ -28,7 +28,9 @@ import {
   Wallet,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { cn } from './lib/utils';
@@ -47,6 +49,30 @@ const config = createConfig({
 });
 
 const queryClient = new QueryClient();
+
+// --- Price Simulation Hook ---
+const useLivePrice = (id: string, basePrice: number) => {
+  const [currentPrice, setCurrentPrice] = useState(basePrice);
+  const [lastDirection, setLastDirection] = useState<'up' | 'down' | null>(null);
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    // Random interval between 4 and 10 seconds
+    const interval = setInterval(() => {
+      const change = (Math.random() * 0.04 - 0.02); // +/- 2% max change
+      const newPrice = Math.max(0.01, basePrice + (basePrice * change));
+      
+      setLastDirection(newPrice > currentPrice ? 'up' : 'down');
+      setCurrentPrice(parseFloat(newPrice.toFixed(3)));
+      setPulse(true);
+      setTimeout(() => setPulse(false), 2000);
+    }, 4000 + Math.random() * 6000);
+
+    return () => clearInterval(interval);
+  }, [id, basePrice, currentPrice]);
+
+  return { currentPrice, lastDirection, pulse };
+};
 
 // Page Components (Defined below for simplicity in this turn)
 const Navbar = () => {
@@ -154,44 +180,62 @@ interface NFTCardProps {
   nft: typeof MOCK_NFTS[0];
 }
 
-const NFTCard: React.FC<NFTCardProps> = ({ nft }) => (
-  <Link to={`/nft/${nft.id}`}>
-    <motion.div 
-      whileHover={{ y: -8, scale: 1.02 }}
-      className="group bg-white/5 rounded-[32px] overflow-hidden border border-white/10 shadow-lg hover:shadow-[#00d2ff]/10 hover:border-[#00d2ff]/30 transition-all duration-500 h-full backdrop-blur-md"
-    >
-      <div className="aspect-square overflow-hidden relative">
-        <img 
-          src={nft.image} 
-          alt={nft.name} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#00d2ff] border border-white/10">
-          {nft.rarity || 'Common'}
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
-          <div className="w-full bg-[#00d2ff] text-black py-3 rounded-2xl font-black text-sm tracking-tighter shadow-xl text-center">
-            View Details
+const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
+  const { currentPrice, lastDirection, pulse } = useLivePrice(nft.id, nft.price);
+  
+  return (
+    <Link to={`/nft/${nft.id}`}>
+      <motion.div 
+        whileHover={{ y: -8, scale: 1.02 }}
+        className="group bg-white/5 rounded-[32px] overflow-hidden border border-white/10 shadow-lg hover:shadow-[#00d2ff]/10 hover:border-[#00d2ff]/30 transition-all duration-500 h-full backdrop-blur-md"
+      >
+        <div className="aspect-square overflow-hidden relative">
+          <img 
+            src={nft.image} 
+            alt={nft.name} 
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#00d2ff] border border-white/10">
+            {nft.rarity || 'Common'}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
+            <div className="w-full bg-[#00d2ff] text-black py-3 rounded-2xl font-black text-sm tracking-tighter shadow-xl text-center">
+              View Details
+            </div>
           </div>
         </div>
-      </div>
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-bold text-lg text-white group-hover:text-[#00d2ff] transition-colors truncate">{nft.name}</h3>
-          <div className="flex items-center gap-1 text-[#00d2ff]">
-            <span className="font-black text-xl">{nft.price}</span>
-            <span className="text-[10px] font-bold text-gray-500">ETH</span>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold text-lg text-white group-hover:text-[#00d2ff] transition-colors truncate">{nft.name}</h3>
+            <div className={cn(
+              "flex items-center gap-1 transition-colors duration-500",
+              pulse ? (lastDirection === 'up' ? 'text-green-400' : 'text-red-400') : 'text-[#00d2ff]'
+            )}>
+              <span className="font-black text-xl">{currentPrice}</span>
+              <span className="text-[10px] font-bold text-gray-500">ETH</span>
+              <AnimatePresence>
+                {pulse && (
+                  <motion.span
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {lastDirection === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+          <div className="flex justify-between items-center pt-4 border-t border-white/5">
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{nft.collection}</p>
+            <p className="text-[10px] text-gray-500 font-mono">L.S: {nft.lastSale ?? '--'} ETH</p>
           </div>
         </div>
-        <div className="flex justify-between items-center pt-4 border-t border-white/5">
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{nft.collection}</p>
-          <p className="text-[10px] text-gray-500 font-mono">L.S: {nft.lastSale ?? '--'} ETH</p>
-        </div>
-      </div>
-    </motion.div>
-  </Link>
-);
+      </motion.div>
+    </Link>
+  );
+};
 
 const Explore = () => {
   const [minPrice, setMinPrice] = useState<string>('');
@@ -389,6 +433,8 @@ const NFTPage = () => {
   const nft = MOCK_NFTS.find(n => n.id === id);
   const [isConfirming, setIsConfirming] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'pending' | 'success'>('idle');
+  
+  const { currentPrice, lastDirection, pulse } = useLivePrice(nft?.id || '0', nft?.price || 0);
 
   if (!nft) return <div className="pt-32 text-center h-screen">NFT not found</div>;
 
@@ -433,20 +479,49 @@ const NFTPage = () => {
               {nft.collection}
             </Link>
             <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9]">{nft.name}</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Owned by</span>
-              <span className="text-[#9d50bb] font-black font-mono text-sm">{nft.owner}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Owned by</span>
+                <span className="text-[#9d50bb] font-black font-mono text-sm">{nft.owner}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,1)]" />
+                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Live Metadata Active</span>
+              </div>
             </div>
           </div>
 
           <div className="glass rounded-[40px] p-10 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[#00d2ff]/10 to-transparent rounded-bl-[100px]" />
             <div className="mb-10">
-              <span className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] block mb-4">Market Value</span>
+              <div className="flex justify-between items-start mb-4">
+                <span className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] block">Market Value</span>
+                <AnimatePresence mode="wait">
+                  {pulse && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className={cn(
+                        "flex items-center gap-1 text-[10px] font-black uppercase tracking-widest",
+                        lastDirection === 'up' ? 'text-green-500' : 'text-red-500'
+                      )}
+                    >
+                      {lastDirection === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      Price Update Detected
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               <div className="flex items-baseline gap-3">
-                <span className="text-6xl font-black text-white tracking-tighter">{nft.price}</span>
+                <motion.span 
+                  animate={{ color: pulse ? (lastDirection === 'up' ? '#4ade80' : '#f87171') : '#ffffff' }}
+                  className="text-6xl font-black tracking-tighter"
+                >
+                  {currentPrice}
+                </motion.span>
                 <span className="text-2xl font-black text-gray-500 tracking-tighter">ETH</span>
-                <span className="text-gray-400 font-bold ml-4 font-mono text-sm">~ ${(nft.price * 3200).toLocaleString()} USD</span>
+                <span className="text-gray-400 font-bold ml-4 font-mono text-sm">~ ${(currentPrice * 3200).toLocaleString()} USD</span>
               </div>
             </div>
             
@@ -465,7 +540,7 @@ const NFTPage = () => {
                   animate={{ y: 0, opacity: 1 }}
                   className="flex flex-col gap-4"
                 >
-                  <p className="text-center text-sm font-bold text-gray-400 mb-2">Are you sure you want to purchase this asset?</p>
+                  <p className="text-center text-sm font-bold text-gray-400 mb-2">Are you sure you want to purchase this asset at <span className="text-white font-black">{currentPrice} ETH</span>?</p>
                   <div className="flex gap-4">
                     <button 
                       onClick={handlePurchase}
