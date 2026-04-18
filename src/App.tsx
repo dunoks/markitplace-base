@@ -106,6 +106,7 @@ const MintedNFTsContext = createContext<{
   allNfts: typeof MOCK_NFTS;
   customCollections: typeof MOCK_COLLECTIONS;
   addCollection: (collection: typeof MOCK_COLLECTIONS[0]) => void;
+  updateCollection: (collection: typeof MOCK_COLLECTIONS[0]) => void;
   allCollections: typeof MOCK_COLLECTIONS;
 }>({
   mintedNfts: [],
@@ -113,6 +114,7 @@ const MintedNFTsContext = createContext<{
   allNfts: MOCK_NFTS,
   customCollections: [],
   addCollection: () => {},
+  updateCollection: () => {},
   allCollections: MOCK_COLLECTIONS,
 });
 
@@ -151,6 +153,10 @@ export const MintedNFTsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setCustomCollections(prev => [collection, ...prev]);
   };
 
+  const updateCollection = (collection: typeof MOCK_COLLECTIONS[0]) => {
+    setCustomCollections(prev => prev.map(c => c.id === collection.id ? collection : c));
+  };
+
   const allNfts = [...mintedNfts, ...MOCK_NFTS];
   const allCollections = [...customCollections, ...MOCK_COLLECTIONS];
 
@@ -161,6 +167,7 @@ export const MintedNFTsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       allNfts, 
       customCollections, 
       addCollection, 
+      updateCollection,
       allCollections 
     }}>
       {children}
@@ -496,7 +503,7 @@ const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose:
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const collectionParam = searchParams.get('collection');
-  const { allNfts } = useMintedNFTs();
+  const { allNfts, allCollections } = useMintedNFTs();
 
   const [minPrice, setMinPrice] = useState<string>('');
   const [maxPrice, setMaxPrice] = useState<string>('');
@@ -539,7 +546,7 @@ const Explore = () => {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Parse this NFT search query: "${searchQuery}". 
-        Available Collections: ${MOCK_COLLECTIONS.map(c => `${c.id} (${c.name})`).join(', ')}.
+        Available Collections: ${allCollections.map(c => `${c.id} (${c.name})`).join(', ')}.
         Available Rarities: Common, Rare, Epic, Legendary.
         Return JSON format with: minPrice (number or null), maxPrice (number or null), collectionId (string or "all"), rarities (array of strings).`,
         config: {
@@ -719,7 +726,7 @@ const Explore = () => {
                               </div>
                               <div className="text-[10px] font-black uppercase tracking-widest text-[#9d50bb] flex items-center gap-1">
                                 {nft.collection}
-                                {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={10} className="fill-[#9d50bb]/10" />}
+                                {allCollections.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={10} className="fill-[#9d50bb]/10" />}
                               </div>
                             </div>
                             <div className="ml-auto flex flex-col items-end">
@@ -1243,7 +1250,7 @@ const CreateNFT = () => {
 const ManageCollection = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { allCollections, addCollection } = useMintedNFTs();
+  const { allCollections, addCollection, updateCollection } = useMintedNFTs();
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -1253,6 +1260,7 @@ const ManageCollection = () => {
     description: existing?.description || '',
     logo: existing?.logo || '',
     banner: existing?.banner || '',
+    isVerified: existing?.isVerified || false,
   });
 
   const handleSave = () => {
@@ -1269,14 +1277,13 @@ const ManageCollection = () => {
         volume: existing?.volume || 0,
         items: existing?.items || 0,
         owners: existing?.owners || 0,
-        isVerified: existing?.isVerified || false,
+        isVerified: formData.isVerified,
       };
 
       if (!id) {
         addCollection(newCol);
       } else {
-        // In a real app we'd update it in state/backend
-        // For this demo, we'll just show success
+        updateCollection(newCol);
       }
       
       setIsSaving(false);
@@ -1393,6 +1400,35 @@ const ManageCollection = () => {
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                 />
               </div>
+
+              {/* Admin Section: Verification */}
+              <div className="pt-6 border-t border-white/5">
+                <div className="flex items-center justify-between glass p-6 rounded-[28px] border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all",
+                      formData.isVerified ? "bg-[#00d2ff]/20 border-[#00d2ff]/40 text-[#00d2ff]" : "bg-white/5 border-white/10 text-gray-600"
+                    )}>
+                      <BadgeCheck size={24} className={formData.isVerified ? "fill-[#00d2ff]/10" : ""} />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-black text-sm uppercase tracking-widest leading-none mb-1">Admin Validation</h4>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Protocol Trust Layer</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setFormData({...formData, isVerified: !formData.isVerified})}
+                    className={cn(
+                      "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      formData.isVerified 
+                        ? "bg-[#00d2ff] text-black shadow-[0_0_20px_rgba(0,210,255,0.4)]" 
+                        : "bg-white/5 text-gray-500 border border-white/10 hover:border-white/20"
+                    )}
+                  >
+                    {formData.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1508,7 +1544,7 @@ const CollectionPage = () => {
 
 const NFTPage = () => {
   const { id } = useParams();
-  const { allNfts } = useMintedNFTs();
+  const { allNfts, allCollections } = useMintedNFTs();
   const nft = allNfts.find(n => n.id === id);
   const [isConfirming, setIsConfirming] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'pending' | 'success'>('idle');
@@ -1635,7 +1671,7 @@ const NFTPage = () => {
             <div>
               <Link to={`/collection/${nft.collectionId}`} className="text-[#00d2ff] font-black uppercase tracking-widest text-xs hover:underline mb-4 flex items-center gap-1.5">
                 {nft.collection}
-                {MOCK_COLLECTIONS.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={14} className="fill-[#00d2ff]/10" />}
+                {allCollections.find(c => c.id === nft.collectionId)?.isVerified && <BadgeCheck size={14} className="fill-[#00d2ff]/10" />}
               </Link>
               <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9] flex items-center gap-3">
                 {nft.name}
