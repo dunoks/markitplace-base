@@ -38,13 +38,56 @@ import {
   Sparkles,
   Zap,
   Filter,
-  BadgeCheck
+  BadgeCheck,
+  Heart
 } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { cn } from './lib/utils';
 import { MOCK_NFTS, MOCK_COLLECTIONS, MOCK_ACTIVITY } from './lib/data';
 
 import { formatAddress } from './lib/utils';
+
+// Favorites Context
+const FavoritesContext = createContext<{
+  favorites: string[];
+  toggleFavorite: (id: string) => void;
+  isFavorite: (id: string) => boolean;
+}>({
+  favorites: [],
+  toggleFavorite: () => {},
+  isFavorite: () => false,
+});
+
+export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('aether_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('aether_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
+  };
+
+  const isFavorite = (id: string) => favorites.includes(id);
+
+  return (
+    <FavoritesContext.Provider value={{ favorites, toggleFavorite, isFavorite }}>
+      {children}
+    </FavoritesContext.Provider>
+  );
+};
+
+export const useFavorites = () => useContext(FavoritesContext);
 
 // Wagmi Config
 const config = createConfig({
@@ -231,80 +274,103 @@ interface NFTCardProps {
 
 const NFTCard: React.FC<NFTCardProps> = ({ nft }) => {
   const { currentPrice, lastDirection, pulse } = useLivePrice(nft.id, nft.price);
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const liked = isFavorite(nft.id);
   
   return (
-    <Link to={`/nft/${nft.id}`}>
-      <motion.div 
-        whileHover={{ y: -8, scale: 1.02 }}
-        className="group bg-white/5 rounded-[32px] overflow-hidden border border-white/10 shadow-lg hover:shadow-[#00d2ff]/10 hover:border-[#00d2ff]/30 transition-all duration-500 h-full backdrop-blur-md"
+    <div className="relative group/card h-full">
+      <button 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFavorite(nft.id);
+        }}
+        className={cn(
+          "absolute top-4 right-4 z-20 p-2.5 rounded-2xl border transition-all duration-300 backdrop-blur-md opacity-0 group-hover/card:opacity-100",
+          liked 
+            ? "bg-red-500/20 border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)] opacity-100" 
+            : "bg-black/40 border-white/10 text-white hover:text-red-400 hover:border-red-400/30"
+        )}
       >
-        <div className="aspect-square overflow-hidden relative">
-          <img 
-            src={nft.image} 
-            alt={nft.name} 
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute top-4 left-4 bg-[#9d50bb]/80 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-2">
-            {nft.isAuction ? (
-              <>
-                <Gavel size={12} /> Auction
-              </>
-            ) : (
-              'Listed'
-            )}
-          </div>
-          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#00d2ff] border border-white/10">
-            {nft.rarity || 'Common'}
-          </div>
-          {nft.isAuction && nft.auctionEnd && (
-            <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex justify-between items-center">
-              <span className="text-gray-400">Ends in</span>
-              <Countdown end={nft.auctionEnd} />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6">
-            <div className="w-full bg-[#00d2ff] text-black py-3 rounded-2xl font-black text-sm tracking-tighter shadow-xl text-center">
-              View Details
-            </div>
-          </div>
-        </div>
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-lg text-white group-hover:text-[#00d2ff] transition-colors truncate flex items-center gap-1.5">
-              {nft.name}
-              {nft.isVerified && <BadgeCheck size={18} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
-            </h3>
-            <div className={cn(
-              "flex items-center gap-1 transition-colors duration-500",
-              pulse ? (lastDirection === 'up' ? 'text-green-400' : 'text-red-400') : 'text-[#00d2ff]'
-            )}>
-              <span className="font-black text-xl">
-                {nft.isAuction ? nft.currentBid : currentPrice}
-              </span>
-              <span className="text-[10px] font-bold text-gray-500">ETH</span>
-              {!nft.isAuction && pulse && (
-                <AnimatePresence>
-                  <motion.span
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {lastDirection === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                  </motion.span>
-                </AnimatePresence>
+        <Heart size={18} className={liked ? "fill-red-500" : ""} />
+      </button>
+
+      <Link to={`/nft/${nft.id}`} className="h-full block">
+        <motion.div 
+          whileHover={{ y: -8, scale: 1.02 }}
+          className="bg-white/5 rounded-[32px] overflow-hidden border border-white/10 shadow-lg hover:shadow-[#00d2ff]/10 hover:border-[#00d2ff]/30 transition-all duration-500 h-full backdrop-blur-md"
+        >
+          <div className="aspect-square overflow-hidden relative">
+            <img 
+              src={nft.image} 
+              alt={nft.name} 
+              className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-1000"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute top-4 left-4 bg-[#9d50bb]/80 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-2">
+              {nft.isAuction ? (
+                <>
+                  <Gavel size={12} /> Auction
+                </>
+              ) : (
+                'Listed'
               )}
             </div>
+            {/* Overlay Rarity */}
+            <div className="absolute top-4 right-4 group-hover/card:top-16 transition-all duration-300">
+               <div className="bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-[#00d2ff] border border-white/10">
+                {nft.rarity || 'Common'}
+              </div>
+            </div>
+            {nft.isAuction && nft.auctionEnd && (
+              <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 flex justify-between items-center group-hover/card:bottom-20 transition-all duration-500">
+                <span className="text-gray-400">Ends in</span>
+                <Countdown end={nft.auctionEnd} />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 flex items-end p-6">
+              <div className="w-full bg-[#00d2ff] text-black py-3 rounded-2xl font-black text-sm tracking-tighter shadow-xl text-center">
+                View Details
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between items-center pt-4 border-t border-white/5">
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{nft.collection}</p>
-            <p className="text-[10px] text-gray-500 font-mono">
-              {nft.isAuction ? `Bids: ${nft.bidsCount}` : `L.S: ${nft.lastSale ?? '--'} ETH`}
-            </p>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold text-lg text-white group-hover/card:text-[#00d2ff] transition-colors truncate flex items-center gap-1.5">
+                {nft.name}
+                {nft.isVerified && <BadgeCheck size={18} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+              </h3>
+              <div className={cn(
+                "flex items-center gap-1 transition-colors duration-500",
+                pulse ? (lastDirection === 'up' ? 'text-green-400' : 'text-red-400') : 'text-[#00d2ff]'
+              )}>
+                <span className="font-black text-xl">
+                  {nft.isAuction ? nft.currentBid : currentPrice}
+                </span>
+                <span className="text-[10px] font-bold text-gray-500">ETH</span>
+                {!nft.isAuction && pulse && (
+                  <AnimatePresence>
+                    <motion.span
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      {lastDirection === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                    </motion.span>
+                  </AnimatePresence>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-4 border-t border-white/5">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{nft.collection}</p>
+              <p className="text-[10px] text-gray-500 font-mono">
+                {nft.isAuction ? `Bids: ${nft.bidsCount}` : `L.S: ${nft.lastSale ?? '--'} ETH`}
+              </p>
+            </div>
           </div>
-        </div>
-      </motion.div>
-    </Link>
+        </motion.div>
+      </Link>
+    </div>
   );
 };
 
@@ -685,6 +751,9 @@ const NFTPage = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'pending' | 'success'>('idle');
   
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const liked = isFavorite(nft?.id || '');
+
   // Auction states
   const [bidAmount, setBidAmount] = useState<string>('');
   const [currentHighestBid, setCurrentHighestBid] = useState(nft?.currentBid || 0);
@@ -693,7 +762,7 @@ const NFTPage = () => {
 
   const { currentPrice, lastDirection, pulse } = useLivePrice(nft?.id || '0', nft?.price || 0);
 
-  if (!nft) return <div className="pt-32 text-center h-screen">NFT not found</div>;
+  if (!nft) return <div className="pt-32 text-center h-screen font-black text-3xl">Asset not found in registry</div>;
 
   const handlePurchase = () => {
     setPurchaseStatus('pending');
@@ -780,6 +849,17 @@ const NFTPage = () => {
             <h1 className="text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9] flex items-center gap-3">
               {nft.name}
               {nft.isVerified && <BadgeCheck size={32} className="text-[#00d2ff] fill-[#00d2ff]/10" />}
+              <button 
+                onClick={() => toggleFavorite(nft.id)}
+                className={cn(
+                  "p-4 rounded-[28px] border transition-all duration-300 ml-4",
+                  liked 
+                    ? "bg-red-500/20 border-red-500/30 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]" 
+                    : "bg-white/5 border-white/10 text-gray-500 hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20"
+                )}
+              >
+                <Heart size={24} className={liked ? "fill-red-500" : ""} />
+              </button>
             </h1>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1143,10 +1223,12 @@ const Home = () => {
 const Profile = () => {
   const { address } = useParams();
   const { address: currentAddress } = useAccount();
-  const [activeTab, setActiveTab] = useState<'assets' | 'activity'>('assets');
+  const [activeTab, setActiveTab] = useState<'assets' | 'activity' | 'favorites'>('assets');
+  const { favorites } = useFavorites();
 
   const profileAddress = address || currentAddress;
   const ownedNfts = MOCK_NFTS.filter(n => n.owner === profileAddress || (profileAddress === currentAddress && n.owner.includes('You')));
+  const favoriteNfts = MOCK_NFTS.filter(n => favorites.includes(n.id));
   const activities = MOCK_ACTIVITY.filter(a => a.from === profileAddress || a.to === profileAddress || (profileAddress === currentAddress && (a.from.includes('You') || a.to?.includes('You'))));
 
   if (!profileAddress) return <div className="pt-32 text-center h-screen">Please connect your wallet to view profile</div>;
@@ -1201,6 +1283,15 @@ const Profile = () => {
           Owned Assets
         </button>
         <button 
+          onClick={() => setActiveTab('favorites')}
+          className={cn(
+            "text-xs font-black uppercase tracking-[0.3em] pb-4 transition-all",
+            activeTab === 'favorites' ? "text-[#00d2ff] border-b-2 border-[#00d2ff]" : "text-gray-500 hover:text-white"
+          )}
+        >
+          Favorites
+        </button>
+        <button 
           onClick={() => setActiveTab('activity')}
           className={cn(
             "text-xs font-black uppercase tracking-[0.3em] pb-4 transition-all",
@@ -1227,6 +1318,24 @@ const Profile = () => {
               <div className="col-span-full h-80 glass rounded-[40px] flex flex-col items-center justify-center text-gray-500">
                 <ShoppingBag size={48} className="mb-4 opacity-20" />
                 <p className="font-black uppercase tracking-widest text-xs">No assets detected in sector</p>
+              </div>
+            )}
+          </motion.div>
+        ) : activeTab === 'favorites' ? (
+          <motion.div 
+            key="favorites"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+          >
+            {favoriteNfts.length > 0 ? (
+              favoriteNfts.map(nft => <NFTCard key={nft.id} nft={nft} />)
+            ) : (
+              <div className="col-span-full h-80 glass rounded-[40px] flex flex-col items-center justify-center text-gray-500 text-center">
+                <Heart size={48} className="mb-4 opacity-20" />
+                <p className="font-black uppercase tracking-widest text-xs mb-2">Registry of Liked Assets is Empty</p>
+                <Link to="/explore" className="text-[#00d2ff] text-[10px] font-black uppercase tracking-widest hover:underline">Signal new matches in Explore</Link>
               </div>
             )}
           </motion.div>
@@ -1355,20 +1464,22 @@ export default function App() {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <Router>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/collection/:id" element={<CollectionPage />} />
-              <Route path="/nft/:id" element={<NFTPage />} />
-              <Route path="/profile/:address" element={<Profile />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
-              <Route path="/create" element={<div className="pt-32 text-center h-screen">Mint your masterpiece</div>} />
-            </Routes>
-          </Layout>
-        </Router>
+        <FavoritesProvider>
+          <Router>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/explore" element={<Explore />} />
+                <Route path="/collection/:id" element={<CollectionPage />} />
+                <Route path="/nft/:id" element={<NFTPage />} />
+                <Route path="/profile/:address" element={<Profile />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/stats" element={<div className="pt-32 text-center h-screen text-4xl font-black">Stats are booming</div>} />
+                <Route path="/create" element={<div className="pt-32 text-center h-screen">Mint your masterpiece</div>} />
+              </Routes>
+            </Layout>
+          </Router>
+        </FavoritesProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
